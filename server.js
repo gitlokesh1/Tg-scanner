@@ -7,7 +7,7 @@ const app = express();
 const PORT = 8080;
 
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('public')); 
 
 // 👇 YAHAN APNI GEMINI KEY DAALEIN 👇
 const GEMINI_API_KEY = 'AIzaSyDxlN8kok5dO5K55svVCF_cxWM0ytN5VRA';
@@ -15,11 +15,104 @@ const GEMINI_API_KEY = 'AIzaSyDxlN8kok5dO5K55svVCF_cxWM0ytN5VRA';
 const apiId = 39942557;
 const apiHash = '77a67551c7f83be89c33da3a95eefea0';
 
-const sessionString = fs.existsSync('session.txt') ? fs.readFileSync('session.txt', 'utf8') : '';
-const stringSession = new StringSession(sessionString);
-
-const client = new TelegramClient(stringSession, apiId, apiHash, { connectionRetries: 5 });
+let sessionString = fs.existsSync('session.txt') ? fs.readFileSync('session.txt', 'utf8') : '';
+let stringSession = new StringSession(sessionString);
+let client = new TelegramClient(stringSession, apiId, apiHash, { connectionRetries: 5 });
 client.setLogLevel("none");
+
+// ==========================================
+// TELEGRAM WEB AUTHENTICATION SYSTEM
+// ==========================================
+let authState = 'idle'; 
+let resolveAuthCode = null;
+let resolveAuthPassword = null;
+let authError = null;
+
+app.get('/api/auth/status', async (req, res) => {
+    try {
+        if (client.connected) {
+            const me = await client.getMe();
+            // Phone number bhi send kar rahe hain UI ko dikhane ke liye
+            if (me) return res.json({ loggedIn: true, user: me.firstName, phone: me.phone });
+        }
+        res.json({ loggedIn: false, state: authState, error: authError });
+    } catch (e) {
+        res.json({ loggedIn: false, state: authState, error: authError });
+    }
+});
+
+app.post('/api/auth/phone', async (req, res) => {
+    const { phone } = req.body;
+    authState = 'processing';
+    authError = null;
+
+    client.start({
+        phoneNumber: phone,
+        password: async () => {
+            authState = 'waiting_password';
+            return new Promise(resolve => resolveAuthPassword = resolve);
+        },
+        phoneCode: async () => {
+            authState = 'waiting_code';
+            return new Promise(resolve => resolveAuthCode = resolve);
+        },
+        onError: (err) => {
+            console.error("Auth Error:", err);
+            authError = err.message;
+            authState = 'error';
+        },
+    }).then(() => {
+        authState = 'logged_in';
+        fs.writeFileSync('session.txt', client.session.save());
+        console.log("✅ Logged in successfully via Web UI!");
+    }).catch(err => {
+        authError = err.message;
+        authState = 'error';
+    });
+
+    await new Promise(r => setTimeout(r, 2000));
+    res.json({ success: true, state: authState, error: authError });
+});
+
+app.post('/api/auth/code', async (req, res) => {
+    const { code } = req.body;
+    if (resolveAuthCode) {
+        resolveAuthCode(code);
+        resolveAuthCode = null;
+        authState = 'processing';
+        await new Promise(r => setTimeout(r, 2000)); 
+        res.json({ success: true, state: authState, error: authError });
+    } else {
+        res.status(400).json({ error: "Session expired or not waiting for OTP" });
+    }
+});
+
+app.post('/api/auth/password', async (req, res) => {
+    const { password } = req.body;
+    if (resolveAuthPassword) {
+        resolveAuthPassword(password);
+        resolveAuthPassword = null;
+        authState = 'processing';
+        await new Promise(r => setTimeout(r, 2000)); 
+        res.json({ success: true, state: authState, error: authError });
+    } else {
+        res.status(400).json({ error: "Not waiting for password" });
+    }
+});
+
+app.post('/api/auth/logout', async (req, res) => {
+    try {
+        await client.disconnect();
+        fs.writeFileSync('session.txt', '');
+        stringSession = new StringSession('');
+        client = new TelegramClient(stringSession, apiId, apiHash, { connectionRetries: 5 });
+        authState = 'idle';
+        res.json({ success: true });
+    } catch(e) {
+        res.json({ success: false });
+    }
+});
+
 
 // ==========================================
 // API 1: LIVE AI-POWERED SEARCH (HR PERSONA)
@@ -27,7 +120,6 @@ client.setLogLevel("none");
 app.post('/api/auto-search', async (req, res) => {
     const { niche } = req.body;
     const targetNiche = niche || "affiliate marketing agents";
-
     let smartKeywordsToSearch = [];
 
     console.log(`\n🧠 AI Brain Working: Generating keywords for "${targetNiche}"...`);
@@ -42,7 +134,6 @@ app.post('/api/auto-search', async (req, res) => {
         });
 
         const aiData = await aiResponse.json();
-        
         if (aiData.error) throw new Error(aiData.error.message);
 
         const rawKeywords = aiData.candidates[0].content.parts[0].text;
@@ -51,7 +142,6 @@ app.post('/api/auto-search', async (req, res) => {
 
     } catch (err) {
         console.log(`⚠️ AI Request Failed! Error: ${err.message}`);
-        console.log("Using Backup Keywords...");
         smartKeywordsToSearch = [`${targetNiche} chat`, "earning group", "promoter network", "part time adda", "freelance hiring"];
     }
 
@@ -59,35 +149,22 @@ app.post('/api/auto-search', async (req, res) => {
     let uniqueUsernames = new Set();
 
     try {
-        console.log(`\n🚀 Searching Telegram for ${targetNiche}...`);
-
         for (const word of smartKeywordsToSearch) {
             if(!word) continue;
-            console.log(`🔍 AI searching for: "${word}"...`);
-
             const result = await client.invoke(new Api.contacts.Search({ q: word, limit: 100 }));
 
             for (const chat of result.chats) {
-                // Size limit removed: Joining all valid groups
                 if (!chat.broadcast && chat.username) {
                     if (!uniqueUsernames.has(chat.username)) {
                         uniqueUsernames.add(chat.username);
-                        allGroups.push({
-                            title: chat.title,
-                            username: `@${chat.username}`,
-                            members: chat.participantsCount || 0
-                        });
+                        allGroups.push({ title: chat.title, username: `@${chat.username}`, members: chat.participantsCount || 0 });
                     }
                 }
             }
             await new Promise(resolve => setTimeout(resolve, 2500));
         }
-
-        console.log(`✅ Found Total ${allGroups.length} fresh groups!`);
         res.json({ success: true, groups: allGroups });
-
     } catch (error) {
-        console.error("Error:", error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -97,44 +174,38 @@ app.post('/api/auto-search', async (req, res) => {
 // ==========================================
 app.post('/api/join-groups', async (req, res) => {
     const { groups } = req.body;
-
     if (!groups || groups.length === 0) return res.status(400).json({ error: "Missing groups list" });
 
-    console.log(`\n🚀 Auto-Join Started: Processing ${groups.length} groups...`);
     let successCount = 0, failCount = 0;
 
     for (const group of groups) {
         try {
-            // Anti-ban human delay
             const preJoinDelay = Math.floor(Math.random() * 8000) + 12000;
-            console.log(`\n⏳ Human Delay: Waiting ${preJoinDelay/1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, preJoinDelay));
-
-            console.log(`🔄 Attempting to Join: ${group}`);
             await client.invoke(new Api.channels.JoinChannel({ channel: group }));
-            
-            console.log(`✅ Joined ${group} successfully!`);
             successCount++;
-
         } catch (error) {
-            console.log(`❌ Failed to join ${group}: ${error.message}`);
             failCount++;
-
-            // Smart FloodWait Handler
             if (error.errorMessage && error.errorMessage.includes('A wait of')) {
                 const waitSeconds = error.seconds || parseInt(error.errorMessage.match(/\d+/)[0]);
-                console.log(`\n⚠️ Telegram Penalty! Pausing for ${waitSeconds} seconds...`);
                 await new Promise(resolve => setTimeout(resolve, (waitSeconds + 2) * 1000));
-                console.log(`🟢 Penalty over! Resuming...`);
             }
         }
     }
-    console.log(`\n🎉 Auto-Join Complete! Joined: ${successCount}, Failed: ${failCount}`);
     res.json({ success: true, successCount, failCount });
 });
 
 (async () => {
-    await client.connect();
-    console.log("✅ Telegram Connected!");
+    if (sessionString) {
+        try {
+            await client.connect();
+            await client.getMe();
+            console.log("✅ Telegram Connected with existing session!");
+        } catch (e) {
+            console.log("⚠️ Existing session invalid. Please login from the web UI.");
+        }
+    } else {
+        console.log("⚠️ No session found. Please login from the web UI.");
+    }
     app.listen(PORT, () => { console.log(`\n🌐 Server running at http://127.0.0.1:${PORT}`); });
 })();
