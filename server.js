@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(express.static('public')); 
 
 // 👇 YAHAN APNI GEMINI KEY DAALEIN 👇
-const GEMINI_API_KEY = 'AQ.Ab8RN6KZJ1Go4Q16QJ47LC12hG46rioCy0fiDcwqzdkA1IWWaw';
+const GEMINI_API_KEY = 'AQ.Ab8RN6LWTjRDIPDlGh0i00-hu29pdGRKR_4K5kBPKvox9E5ZOg';
 
 const apiId = 39942557;
 const apiHash = '77a67551c7f83be89c33da3a95eefea0';
