@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insta Leads Sniper | Affiliate Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>body { background-color: #0b0e14; color: #e2e8f0; font-family: 'Inter', sans-serif; } .glass { background: rgba(23, 28, 38, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }</style>
+</head>
+<body class="min-h-screen pb-10">
+
+    <nav class="p-5 glass sticky top-0 z-50 mb-8 border-b border-gray-800 flex items-center justify-between">
+        <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-orange-400">
+            <i class="fab fa-instagram text-pink-500 mr-2"></i> Insta Leads Sniper
+        </h1>
+    </nav>
+
+    <div class="container mx-auto px-4 max-w-4xl">
+        <div class="glass p-8 rounded-3xl mb-8 border-t-4 border-pink-500 shadow-2xl">
+            
+            <div class="bg-gray-900 p-4 rounded-xl mb-6 border border-gray-800">
+                <h3 class="text-sm font-bold text-gray-400 mb-3"><i class="fas fa-key"></i> Auto-Login Details (Sirf pehli baar)</h3>
+                <div class="flex flex-col md:flex-row gap-3">
+                    <input type="text" id="ig-user" placeholder="Instagram Username (Optional)" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-pink-500">
+                    <input type="password" id="ig-pass" placeholder="Password (Optional)" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-pink-500">
+                </div>
+                <p class="text-xs text-gray-500 mt-2">*Note: Hamesha ek Fake/Secondary Insta account hi use karein.</p>
+            </div>
+
+            <h2 class="text-2xl font-bold mb-2 text-white">Target Reel Link 🎯</h2>
+            <div class="flex flex-col md:flex-row gap-4 mt-4">
+                <input type="text" id="target-url" placeholder="Paste Reel Link Here..." class="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-5 py-4 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 text-lg">
+                <button id="scrape-btn" onclick="startScraping()" class="bg-gradient-to-r from-pink-600 to-orange-500 text-white px-8 py-4 rounded-xl font-bold flex justify-center items-center gap-3 text-lg">
+                    <i class="fas fa-crosshairs"></i> Snipe Leads
+                </button>
+            </div>
+            <div id="status-box" class="mt-6 text-center text-sm font-semibold hidden"></div>
+        </div>
+
+        <div class="glass p-6 rounded-2xl">
+            <div id="leads-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="col-span-full text-center py-10 text-gray-600"><p>Waiting for command...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function startScraping() {
+            const urlInput = document.getElementById('target-url').value.trim();
+            const igUser = document.getElementById('ig-user').value.trim();
+            const igPass = document.getElementById('ig-pass').value.trim();
+            
+            const btn = document.getElementById('scrape-btn');
+            const statusBox = document.getElementById('status-box');
+            const grid = document.getElementById('leads-grid');
+
+            if (!urlInput) return alert("Reel link zaroori hai!");
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            statusBox.classList.remove('hidden');
+            statusBox.innerHTML = '<span class="text-orange-400">Bot is working in background. Agar login ho raha hai toh 15-20 seconds lag sakte hain...</span>';
+            grid.innerHTML = '<div class="col-span-full text-center py-10 text-pink-500"><i class="fas fa-circle-notch fa-spin text-4xl mb-4 block"></i></div>';
+
+            try {
+                const response = await fetch('/api/scrape-insta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ targetUrl: urlInput, igUser, igPass })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    statusBox.innerHTML = `<span class="text-green-400">✅ Found ${data.leads.length} leads!</span>`;
+                    grid.innerHTML = '';
+                    data.leads.forEach(lead => {
+                        grid.innerHTML += `<div class="bg-gray-900 p-4 rounded-xl border border-gray-800">
+                            <h4 class="text-white font-bold text-sm">@${lead.username}</h4>
+                            <p class="text-xs text-gray-400 mt-2">"${lead.commentText}"</p>
+                        </div>`;
+                    });
+                } else {
+                    statusBox.innerHTML = `<span class="text-red-400">❌ ${data.error}</span>`;
+                    grid.innerHTML = '';
+                }
+            } catch (err) {
+                statusBox.innerHTML = `<span class="text-red-400">❌ Error: Server fail ho gaya!</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-crosshairs"></i> Snipe Leads';
+            }
+        }
+    </script>
+</body>
+</html>
