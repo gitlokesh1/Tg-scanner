@@ -15,107 +15,118 @@ const GEMINI_API_KEY = 'AQ.Ab8RN6LWTjRDIPDlGh0i00-hu29pdGRKR_4K5kBPKvox9E5ZOg';
 const apiId = 39942557;
 const apiHash = '77a67551c7f83be89c33da3a95eefea0';
 
-let sessionString = fs.existsSync('session.txt') ? fs.readFileSync('session.txt', 'utf8') : '';
-let stringSession = new StringSession(sessionString);
-let client = new TelegramClient(stringSession, apiId, apiHash, { connectionRetries: 5 });
-client.setLogLevel("none");
+// Multi-Account Storage
+const SESSIONS_FILE = 'sessions.json';
+let sessions = fs.existsSync(SESSIONS_FILE) ? JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')) : {};
+let clients = {}; // Active client instances
+let pendingAuths = {}; // Pending logins
 
-// ==========================================
-// TELEGRAM WEB AUTHENTICATION SYSTEM
-// ==========================================
-let authState = 'idle';
-let resolveAuthCode = null;
-let resolveAuthPassword = null;
-let authError = null;
-
-app.get('/api/auth/status', async (req, res) => {
-    try {
-        if (client.connected) {
-            const me = await client.getMe();
-            if (me) return res.json({ loggedIn: true, user: me.firstName, phone: me.phone });
+// Start all saved sessions
+(async () => {
+    for (let phone in sessions) {
+        let stringSession = new StringSession(sessions[phone]);
+        let client = new TelegramClient(stringSession, apiId, apiHash, { connectionRetries: 5 });
+        client.setLogLevel("none");
+        try {
+            await client.connect();
+            clients[phone] = client;
+            console.log(`✅ Connected existing account: ${phone}`);
+        } catch (e) {
+            console.log(`⚠️ Session invalid for: ${phone}`);
+            delete sessions[phone];
         }
-        res.json({ loggedIn: false, state: authState, error: authError });
-    } catch (e) {
-        res.json({ loggedIn: false, state: authState, error: authError });
     }
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2));
+})();
+
+function getClient(req) {
+    const phone = req.body.activeAccount || req.query.activeAccount;
+    if (phone && clients[phone]) return clients[phone];
+    const availablePhones = Object.keys(clients);
+    return availablePhones.length > 0 ? clients[availablePhones[0]] : null;
+}
+
+// ==========================================
+// MULTI-ACCOUNT AUTHENTICATION
+// ==========================================
+app.get('/api/auth/status', async (req, res) => {
+    let accounts = [];
+    for (let phone in clients) {
+        try {
+            const me = await clients[phone].getMe();
+            accounts.push({ phone: phone, name: me.firstName });
+        } catch(e) {}
+    }
+    res.json({ loggedIn: accounts.length > 0, accounts });
 });
 
 app.post('/api/auth/phone', async (req, res) => {
     const { phone } = req.body;
-    authState = 'processing';
-    authError = null;
+    let stringSession = new StringSession('');
+    let client = new TelegramClient(stringSession, apiId, apiHash, { connectionRetries: 5 });
+    client.setLogLevel("none");
+
+    pendingAuths[phone] = { client, state: 'processing', error: null };
 
     client.start({  
         phoneNumber: phone,  
-        password: async () => {  
-            authState = 'waiting_password';  
-            return new Promise(resolve => resolveAuthPassword = resolve);  
-        },  
-        phoneCode: async () => {  
-            authState = 'waiting_code';  
-            return new Promise(resolve => resolveAuthCode = resolve);  
-        },  
-        onError: (err) => {  
-            console.error("Auth Error:", err);  
-            authError = err.message;  
-            authState = 'error';  
-        },  
+        password: async () => new Promise(resolve => pendingAuths[phone].resolvePassword = resolve),  
+        phoneCode: async () => new Promise(resolve => pendingAuths[phone].resolveCode = resolve),  
+        onError: (err) => { pendingAuths[phone].error = err.message; pendingAuths[phone].state = 'error'; }  
     }).then(() => {  
-        authState = 'logged_in';  
-        fs.writeFileSync('session.txt', client.session.save());  
-        console.log("✅ Logged in successfully via Web UI!");  
+        pendingAuths[phone].state = 'logged_in';  
+        sessions[phone] = client.session.save();
+        fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2));  
+        clients[phone] = client;
+        console.log(`✅ New account added: ${phone}`);  
     }).catch(err => {  
-        authError = err.message;  
-        authState = 'error';  
+        pendingAuths[phone].error = err.message; pendingAuths[phone].state = 'error';  
     });  
 
     await new Promise(r => setTimeout(r, 2000));  
-    res.json({ success: true, state: authState, error: authError });
+    res.json({ success: true, state: pendingAuths[phone].state, error: pendingAuths[phone].error });
 });
 
 app.post('/api/auth/code', async (req, res) => {
-    const { code } = req.body;
-    if (resolveAuthCode) {
-        resolveAuthCode(code);
-        resolveAuthCode = null;
-        authState = 'processing';
+    const { phone, code } = req.body;
+    if (pendingAuths[phone] && pendingAuths[phone].resolveCode) {
+        pendingAuths[phone].resolveCode(code);
+        pendingAuths[phone].resolveCode = null;
+        pendingAuths[phone].state = 'processing';
         await new Promise(r => setTimeout(r, 2000));
-        res.json({ success: true, state: authState, error: authError });
-    } else {
-        res.status(400).json({ error: "Session expired or not waiting for OTP" });
-    }
+        res.json({ success: true, state: pendingAuths[phone].state, error: pendingAuths[phone].error });
+    } else { res.status(400).json({ error: "Invalid auth state" }); }
 });
 
 app.post('/api/auth/password', async (req, res) => {
-    const { password } = req.body;
-    if (resolveAuthPassword) {
-        resolveAuthPassword(password);
-        resolveAuthPassword = null;
-        authState = 'processing';
+    const { phone, password } = req.body;
+    if (pendingAuths[phone] && pendingAuths[phone].resolvePassword) {
+        pendingAuths[phone].resolvePassword(password);
+        pendingAuths[phone].resolvePassword = null;
+        pendingAuths[phone].state = 'processing';
         await new Promise(r => setTimeout(r, 2000));
-        res.json({ success: true, state: authState, error: authError });
-    } else {
-        res.status(400).json({ error: "Not waiting for password" });
-    }
+        res.json({ success: true, state: pendingAuths[phone].state, error: pendingAuths[phone].error });
+    } else { res.status(400).json({ error: "Invalid auth state" }); }
 });
 
 app.post('/api/auth/logout', async (req, res) => {
-    try {
-        await client.disconnect();
-        fs.writeFileSync('session.txt', '');
-        stringSession = new StringSession('');
-        client = new TelegramClient(stringSession, apiId, apiHash, { connectionRetries: 5 });
-        authState = 'idle';
-        res.json({ success: true });
-    } catch(e) {
-        res.json({ success: false });
+    const { phone } = req.body;
+    if (clients[phone]) {
+        await clients[phone].disconnect();
+        delete clients[phone];
+        delete sessions[phone];
+        fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2));
     }
+    res.json({ success: true });
 });
 
 // ==========================================
-// API 1: LIVE AI-POWERED SEARCH (INDIAN TARGETED)
+// API 1: LIVE AI-POWERED SEARCH 
 // ==========================================
 app.post('/api/auto-search', async (req, res) => {
+    const activeClient = getClient(req);
+    if(!activeClient) return res.status(401).json({ error: "No active Telegram client" });
+    
     const { niche } = req.body;
     const targetNiche = niche || "affiliate marketing agents";
     let smartKeywordsToSearch = [];
@@ -124,22 +135,14 @@ app.post('/api/auto-search', async (req, res) => {
 
     try {  
         const prompt = `Act as an HR recruiter looking to hire ${targetNiche} in the iGaming industry specifically for the INDIAN market on Telegram. Find public Telegram groups where Indian users actively discuss work, traffic, or affiliate opportunities. Generate exactly 15 Telegram search queries. Use Indian context words along with the niche (e.g., "india", "hindi", "promoters adda", "kamao", "desi"). Each query must be 2-3 words maximum. Output ONLY a comma-separated list, nothing else.`;  
-
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {  
-            method: 'POST',  
-            headers: { 'Content-Type': 'application/json' },  
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })  
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })  
         });  
-
         const aiData = await aiResponse.json();  
         if (aiData.error) throw new Error(aiData.error.message);  
-
         const rawKeywords = aiData.candidates[0].content.parts[0].text;  
         smartKeywordsToSearch = rawKeywords.split(',').map(kw => kw.trim().replace(/"/g, ''));  
-        console.log(`💡 AI Generated Indian Keywords: `, smartKeywordsToSearch);  
-
     } catch (err) {  
-        console.log(`⚠️ AI Request Failed! Error: ${err.message}`);  
         smartKeywordsToSearch = [`${targetNiche} india`, "earning group hindi", "promoter adda", "part time india", "affiliate hindi"];  
     }  
 
@@ -149,30 +152,26 @@ app.post('/api/auto-search', async (req, res) => {
     try {  
         for (const word of smartKeywordsToSearch) {  
             if(!word) continue;  
-            const result = await client.invoke(new Api.contacts.Search({ q: word, limit: 100 }));  
-
+            const result = await activeClient.invoke(new Api.contacts.Search({ q: word, limit: 100 }));  
             for (const chat of result.chats) {  
-                if (!chat.broadcast && chat.username) {  
-                    if (!uniqueUsernames.has(chat.username)) {  
-                        uniqueUsernames.add(chat.username);  
-                        allGroups.push({ title: chat.title, username: `@${chat.username}`, members: chat.participantsCount || 0 });  
-                    }  
+                if (!chat.broadcast && chat.username && !uniqueUsernames.has(chat.username)) {  
+                    uniqueUsernames.add(chat.username);  
+                    allGroups.push({ title: chat.title, username: `@${chat.username}`, members: chat.participantsCount || 0 });  
                 }  
             }  
             await new Promise(resolve => setTimeout(resolve, 2000));  
         }  
         res.json({ success: true, groups: allGroups });  
-    } catch (error) {  
-        res.status(500).json({ success: false, error: error.message });  
-    }
+    } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
 // ==========================================
-// API 2: AUTO-SCAN GROUPS & AI SCORING (STRICTLY INDIANS)
+// API 2: AUTO-SCAN GROUPS (STRICTLY INDIANS)
 // ==========================================
 app.post('/api/scan-groups', async (req, res) => {
+    const activeClient = getClient(req);
+    if(!activeClient) return res.status(401).json({ error: "No active Telegram client" });
     const { groups } = req.body;
-    if (!groups || groups.length === 0) return res.status(400).json({ error: "Missing groups list" });
 
     let collectedMessages = [];
     console.log(`\n🔍 Scanning ${groups.length} public groups without joining...`);
@@ -180,24 +179,17 @@ app.post('/api/scan-groups', async (req, res) => {
     try {
         for (const group of groups) {
             try {
-                const messages = await client.getMessages(group, { limit: 40 }); 
+                const messages = await activeClient.getMessages(group, { limit: 40 }); 
                 for (const msg of messages) {
                     if (msg.message && msg.sender && msg.sender.username) {
-                        collectedMessages.push({
-                            username: `@${msg.sender.username}`,
-                            text: msg.message.substring(0, 200) 
-                        });
+                        collectedMessages.push({ username: `@${msg.sender.username}`, text: msg.message.substring(0, 200) });
                     }
                 }
                 await new Promise(resolve => setTimeout(resolve, 1000)); 
-            } catch (err) {
-                console.log(`⚠️ Skipped ${group}: ${err.message}`);
-            }
+            } catch (err) { console.log(`⚠️ Skipped ${group}: ${err.message}`); }
         }
 
-        if (collectedMessages.length === 0) {
-            return res.json({ success: true, candidates: [] });
-        }
+        if (collectedMessages.length === 0) return res.json({ success: true, candidates: [] });
 
         let userChats = {};
         collectedMessages.forEach(m => {
@@ -205,35 +197,12 @@ app.post('/api/scan-groups', async (req, res) => {
             userChats[m.username].push(m.text);
         });
 
-        let aiInputData = Object.keys(userChats).map(username => {
-            return `User: ${username}\nMessages: ${userChats[username].join(' | ')}`;
-        }).join('\n\n');
+        let aiInputData = Object.keys(userChats).map(username => `User: ${username}\nMessages: ${userChats[username].join(' | ')}`).join('\n\n');
 
-        console.log(`🧠 AI Brain Working: Filtering out non-Indians from ${Object.keys(userChats).length} active users...`);
-
-        const prompt = `You are an expert HR recruiter in the iGaming and Affiliate marketing industry, strictly hiring for the INDIAN market. 
-        Analyze the following Telegram user messages. 
-        
-        Data:
-        ${aiInputData}
-
-        CRITICAL INSTRUCTIONS:
-        1. ONLY select candidates who appear to be from INDIA (Look for Hindi, Hinglish, mentions of INR, Paytm, UPI, or Indian locations/context).
-        2. STRICTLY IGNORE and REJECT users speaking Russian, Turkish, Arabic, Spanish, or showing non-Indian context, no matter how good they are.
-        3. Identify potential candidates like Affiliate Agents, Website Promoters, Media Buyers, or Traffic Providers.
-        
-        Return ONLY a JSON array of objects with these exact keys:
-        - "username": (string, the user's handle)
-        - "category": (string, e.g., Affiliate Agent, Media Buyer)
-        - "score": (number, 0-100 based on relevance to iGaming traffic)
-        - "reason": (string, 1 short sentence why they got this score AND mention their Indian context indicator like "Speaks Hinglish" or "Mentions INR")
-        
-        CRITICAL: Do not include any markdown formatting like \`\`\`json. Just output the raw JSON array. Return [] if no one is relevant or Indian.`;
+        const prompt = `You are an expert HR recruiter in the iGaming and Affiliate marketing industry, strictly hiring for the INDIAN market. Analyze these Telegram messages: \n\n${aiInputData}\n\nCRITICAL INSTRUCTIONS:\n1. ONLY select candidates who appear to be from INDIA.\n2. IGNORE Russian, Turkish, Arabic speakers.\n3. Return ONLY a JSON array of objects with keys: "username", "category", "score" (0-100), "reason". Do not use markdown blocks.`;
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
 
         const aiData = await aiResponse.json();
@@ -241,51 +210,31 @@ app.post('/api/scan-groups', async (req, res) => {
         
         try {
             let rawText = aiData.candidates[0].content.parts[0].text;
-            rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim(); 
-            candidates = JSON.parse(rawText);
-            
-            candidates = candidates.filter(c => c.score > 50).sort((a,b) => b.score - a.score);
-        } catch(e) {
-            console.error("AI JSON Parse Error:", e);
-        }
+            rawText = rawText.replace(/```json/g, '').replace(/
+```/g, '').trim(); 
+            candidates = JSON.parse(rawText).filter(c => c.score > 50).sort((a,b) => b.score - a.score);
+        } catch(e) { console.error("AI Parse Error", e); }
 
-        console.log(`✅ AI found ${candidates.length} INDIAN candidates!`);
         res.json({ success: true, candidates });
-
-    } catch (error) {
-        console.error("Scan Error:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+    } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
 // ==========================================
-// API 3: SEND DIRECT MESSAGE (PHASE 3)
+// API 3: SEND DM
 // ==========================================
 app.post('/api/send-dm', async (req, res) => {
-    const { username, message } = req.body;
-    if (!username || !message) return res.status(400).json({ error: "Missing username or message" });
+    const activeClient = getClient(req);
+    if(!activeClient) return res.status(401).json({ error: "No active Telegram client" });
 
+    const { username, message } = req.body;
     try {
-        console.log(`\n✉️ Sending personalized DM to ${username}...`);
-        await client.sendMessage(username, { message: message });
+        console.log(`\n✉️ Sending DM to ${username}...`);
+        await activeClient.sendMessage(username, { message: message });
         res.json({ success: true });
     } catch (error) {
-        console.error(`❌ Failed to send DM to ${username}:`, error.message);
+        console.error(`❌ DM Error for ${username}:`, error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-(async () => {
-    if (sessionString) {
-        try {
-            await client.connect();
-            await client.getMe();
-            console.log("✅ Telegram Connected with existing session!");
-        } catch (e) {
-            console.log("⚠️ Existing session invalid. Please login from the web UI.");
-        }
-    } else {
-        console.log("⚠️ No session found. Please login from the web UI.");
-    }
-    app.listen(PORT, () => { console.log(`\n🌐 Server running at http://127.0.0.1:${PORT}`); });
-})();
+app.listen(PORT, () => { console.log(`\n🌐 Multi-Account Server running at http://127.0.0.1:${PORT}`); });
