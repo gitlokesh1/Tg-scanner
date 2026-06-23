@@ -1,409 +1,1684 @@
-<!DOCTYPE html>  
-<html lang="en">  
-<head>  
-    <meta charset="UTF-8">  
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
-    <title>HR AI Assistant - Multi Account</title>  
-    <script src="https://cdn.tailwindcss.com"></script>  
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">  
-    <style>  
-        body { background-color: #0b0e14; color: #e2e8f0; font-family: 'Inter', sans-serif; }  
-        .glass { background: rgba(23, 28, 38, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }  
-        .chat-container { max-height: 300px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #4b5563 #111827; }  
-    </style>  
-</head>  
-<body class="min-h-screen pb-10" onload="checkAuthStatus()">  
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TG Scanner · Browser-Only GramJS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #07111f;
+            --panel: rgba(10, 20, 38, 0.78);
+            --panel-border: rgba(148, 163, 184, 0.15);
+            --muted: #94a3b8;
+            --text: #e2e8f0;
+            --success: #22c55e;
+            --danger: #f87171;
+            --warning: #facc15;
+            --brand: #38bdf8;
+            --brand-2: #8b5cf6;
+        }
 
-<nav class="p-4 glass sticky top-0 z-50 mb-8 border-b border-gray-800 flex flex-wrap justify-between items-center gap-4">  
-    <h1 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">  
-        <i class="fas fa-robot"></i> HR Dashboard  
-    </h1>  
-    <div id="nav-status" class="flex items-center gap-3">  
-        <span class="text-sm font-bold text-gray-400"><i class="fas fa-circle-notch fa-spin"></i> Loading Accounts...</span>  
-    </div>  
-</nav>  
+        * { box-sizing: border-box; }
 
-<!-- MAIN DASHBOARD -->  
-<div id="main-dashboard" class="hidden container mx-auto px-4 max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8">  
-    
-    <!-- Step 1: AI Chat -->
-    <div class="lg:col-span-1 glass p-6 rounded-2xl border-t-4 border-purple-500 shadow-lg flex flex-col h-[500px]">  
-        <h3 class="font-bold text-xl mb-2 text-purple-400"><i class="fas fa-comments mr-2"></i> Discuss with AI</h3>  
-        <div id="chat-box" class="chat-container flex-1 bg-gray-900 rounded-xl p-4 mb-4 space-y-4">
-            <div class="text-sm bg-purple-900/40 border border-purple-700 p-3 rounded-lg text-purple-100">  
-                <strong>AI HR:</strong> Hello Sir! Aaj hume kis type ke agents ya promoters hire karne hain?  
-            </div>
-        </div>  
-        <div class="flex gap-2">  
-            <input type="text" id="chat-input" placeholder="e.g. Crypto promoters..." class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white" onkeypress="if(event.key === 'Enter') sendChat()">  
-            <button onclick="sendChat()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 rounded-xl"><i class="fas fa-paper-plane"></i></button>  
-        </div>  
-    </div>  
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 28%),
+                radial-gradient(circle at top right, rgba(139, 92, 246, 0.14), transparent 32%),
+                linear-gradient(180deg, #030712 0%, var(--bg) 100%);
+            color: var(--text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
 
-    <div class="lg:col-span-2 space-y-6">  
-        <!-- Step 2: Search Groups -->
-        <div class="glass p-6 rounded-2xl border-t-4 border-blue-500 shadow-lg">  
-            <h3 class="font-bold text-xl mb-2 text-blue-400"><i class="fas fa-search mr-2"></i> Find Groups</h3>  
-            <div class="flex gap-4">  
-                <input type="text" id="final-niche" placeholder="e.g. Students part time job" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white">  
-                <button id="auto-search-btn" onclick="triggerAutoSearch()" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-bold transition">Find Groups</button>  
-            </div>  
-        </div>  
+        .glass {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 22px 55px rgba(2, 6, 23, 0.35);
+        }
 
-        <!-- Step 3: AI Scan -->
-        <div class="glass p-6 rounded-2xl border-t-4 border-green-500 shadow-lg flex justify-between items-center">  
-            <div>  
-                <h3 class="font-bold text-xl mb-1 text-green-400"><i class="fas fa-radar mr-2"></i> AI Deep Scan</h3>  
-                <p class="text-sm text-gray-400">Groups Found: <span id="total-count" class="text-white font-bold">0</span></p>  
-            </div>  
-            <button id="scan-btn" onclick="scanAndScoreGroups()" class="bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-xl font-bold transition">Scan Groups</button>  
-        </div>  
-        <div id="scan-status" class="text-center font-bold"></div>  
-    </div>  
+        .card-hover {
+            transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
+        }
 
-    <!-- Step 4: Base Template -->
-    <div class="lg:col-span-3 mt-2 glass p-6 rounded-2xl border-t-4 border-indigo-500 shadow-lg">
-        <h3 class="font-bold text-xl mb-2 text-indigo-400"><i class="fas fa-envelope-open-text mr-2"></i> Outreach Base Template</h3>
-        <p class="text-sm text-gray-400 mb-4">Ye tumhara main message hai. AI isme se detail padh kar har lead ke liye isko thoda customize karega.</p>
-        <textarea id="base-template" rows="2" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Hello, we are an iGaming company looking for reliable traffic providers and affiliates. Let me know if you are open for a partnership!"></textarea>
-    </div>
+        .card-hover:hover {
+            transform: translateY(-2px);
+            border-color: rgba(96, 165, 250, 0.34);
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.42);
+        }
 
-    <!-- Step 5: Filtered Candidates -->
-    <div class="lg:col-span-3 mt-4">  
-        <h3 class="text-gray-400 font-bold mb-4 text-xl"><i class="fas fa-filter text-yellow-400 mr-2"></i> Filtered Indian Candidates</h3>  
-        <div id="candidates-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="col-span-full text-center py-10 text-gray-600 glass rounded-xl border-dashed border-2 border-gray-700">
-                Groups scan karne ke baad AI yahan best Indian candidates show karega...
-            </div>
-        </div>  
-    </div>  
-</div>  
+        .step-pill {
+            transition: all 0.25s ease;
+        }
 
-<!-- OUTREACH MODAL -->
-<div id="dm-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex justify-center items-center p-4">
-    <div class="glass max-w-lg w-full rounded-2xl p-6 relative border border-gray-700 shadow-2xl">
-        <button onclick="document.getElementById('dm-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
-        <h3 class="text-xl font-bold text-indigo-400 mb-2">Draft DM for <span id="modal-username" class="text-white"></span></h3>
-        
-        <div id="modal-loader" class="text-sm text-yellow-400 mb-4 font-bold"><i class="fas fa-magic fa-spin mr-1"></i> AI is personalizing...</div>
-        <textarea id="final-dm-text" rows="5" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white mb-4 hidden focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
-        
-        <div id="send-status" class="text-sm font-bold mb-3 text-center"></div>
-        <div id="action-buttons" class="space-y-2 hidden">
-            <button id="confirm-send-btn" onclick="sendActualDM()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition flex justify-center items-center gap-2">
-                <i class="fas fa-paper-plane"></i> Send Message Now
-            </button>
-        </div>
-    </div>
-</div>
+        .step-pill.active {
+            border-color: rgba(56, 189, 248, 0.55);
+            background: linear-gradient(135deg, rgba(14, 116, 144, 0.9), rgba(91, 33, 182, 0.85));
+        }
 
-<!-- ADD ACCOUNT LOGIN MODAL -->
-<div id="login-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex justify-center items-center p-4">
-    <div class="glass max-w-md w-full rounded-2xl p-6 relative border-t-4 border-yellow-500 shadow-2xl bg-gray-900/90">
-        <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
-        <h3 class="font-bold text-xl mb-4 text-yellow-400"><i class="fas fa-plus-circle mr-2"></i> Add Telegram Account</h3>
-        
-        <div id="phone-step" class="flex flex-col gap-3">
-            <input type="text" id="phone-input" placeholder="+919876543210" class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
-            <button onclick="sendPhone()" class="bg-yellow-600 hover:bg-yellow-500 text-white px-6 py-3 rounded-xl font-bold transition">Send OTP</button>
-        </div>
-        <div id="code-step" class="hidden flex flex-col gap-3">
-            <input type="text" id="code-input" placeholder="Enter Telegram OTP" class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <button onclick="sendCode()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition">Verify OTP</button>
-        </div>
-        <div id="password-step" class="hidden flex flex-col gap-3">
-            <input type="password" id="password-input" placeholder="Enter 2-Step Password" class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
-            <button onclick="sendPassword()" class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl font-bold transition">Submit</button>
-        </div>
-        <div id="auth-msg" class="mt-4 text-sm font-bold text-center"></div>
-    </div>
-</div>
+        .step-pill.done {
+            border-color: rgba(34, 197, 94, 0.5);
+            background: linear-gradient(135deg, rgba(22, 101, 52, 0.9), rgba(21, 128, 61, 0.82));
+        }
 
-<script>  
-    // 👇 YAHAN APNI GEMINI KEY DAALEIN 👇
-    const GEMINI_KEY = 'AQ.Ab8RN6LWTjRDIPDlGh0i00-hu29pdGRKR_4K5kBPKvox9E5ZOg';   
-    
-    let activeAccountPhone = ''; // Currently selected sender
-    let authPhoneTrack = ''; // Phone currently logging in
-    let currentGroupsList = [];  
-    let chatHistory = [];
-    let currentDmUser = '';
+        .grid-scroll,
+        .modal-scroll,
+        .candidate-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+        }
 
-    // ==========================================  
-    // AUTHENTICATION LOGIC (MULTI-ACCOUNT)
-    // ==========================================  
-    async function checkAuthStatus() {  
-        try {  
-            const res = await fetch('/api/auth/status');  
-            const data = await res.json();  
-            if (data.loggedIn && data.accounts.length > 0) {
-                activeAccountPhone = data.accounts[0].phone;
-                updateNavbar(data.accounts);
-                document.getElementById('main-dashboard').classList.remove('hidden');
-            } else {
-                document.getElementById('login-modal').classList.remove('hidden');
-                document.getElementById('nav-status').innerHTML = `<span class="text-red-400">Not Logged In</span>`;
-            }
-        } catch (e) { console.error("Auth check failed", e); }  
-    }  
+        .grid-scroll::-webkit-scrollbar,
+        .modal-scroll::-webkit-scrollbar,
+        .candidate-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
 
-    function updateNavbar(accounts) {
-        let options = accounts.map(acc => `<option value="${acc.phone}">${acc.name} (${acc.phone})</option>`).join('');
-        document.getElementById('nav-status').innerHTML = `
-            <div class="flex items-center gap-2 bg-gray-800 p-1.5 rounded-lg border border-gray-700">
-                <i class="fas fa-user-circle text-green-400 ml-2"></i>
-                <select onchange="activeAccountPhone = this.value" class="bg-transparent text-white font-bold text-sm outline-none cursor-pointer pr-2">
-                    ${options}
-                </select>
-            </div>
-            <button onclick="document.getElementById('login-modal').classList.remove('hidden')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition shadow-lg">
-                <i class="fas fa-plus"></i> Add Account
-            </button>
-        `;
-    }
+        .grid-scroll::-webkit-scrollbar-thumb,
+        .modal-scroll::-webkit-scrollbar-thumb,
+        .candidate-scroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.35);
+            border-radius: 999px;
+        }
 
-    function showAuthMsg(msg, isError = false) {  
-        const el = document.getElementById('auth-msg');  
-        el.innerHTML = msg; 
-        el.className = `mt-4 text-sm font-bold ${isError ? 'text-red-400' : 'text-green-400'} text-center`;  
-    }  
+        .toast {
+            animation: slideUp 0.25s ease;
+        }
 
-    async function sendPhone() {  
-        authPhoneTrack = document.getElementById('phone-input').value.trim();  
-        if(!authPhoneTrack) return alert("Please enter phone number with country code (+91...)");
-        showAuthMsg('<i class="fas fa-spinner fa-spin"></i> Requesting OTP...');  
-        const res = await fetch('/api/auth/phone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone: authPhoneTrack }) });  
-        handleAuthState(await res.json());  
-    }  
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-    async function sendCode() {  
-        const code = document.getElementById('code-input').value.trim();  
-        if(!code) return alert("Please enter OTP");
-        showAuthMsg('<i class="fas fa-spinner fa-spin"></i> Verifying...');  
-        const res = await fetch('/api/auth/code', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone: authPhoneTrack, code }) });  
-        handleAuthState(await res.json());  
-    }  
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
 
-    async function sendPassword() {  
-        const password = document.getElementById('password-input').value;  
-        showAuthMsg('<i class="fas fa-spinner fa-spin"></i> Verifying Password...');  
-        const res = await fetch('/api/auth/password', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone: authPhoneTrack, password }) });  
-        handleAuthState(await res.json());  
-    }  
+        .modal-backdrop {
+            background: rgba(2, 6, 23, 0.82);
+            backdrop-filter: blur(10px);
+        }
 
-    function handleAuthState(data) {  
-        if(data.error) return showAuthMsg(`❌ Error: ${data.error}`, true);  
-        if (data.state === 'waiting_code') {  
-            showAuthMsg("✅ OTP sent!"); 
-            document.getElementById('phone-step').classList.add('hidden'); 
-            document.getElementById('code-step').classList.remove('hidden');  
-        } else if (data.state === 'waiting_password') {  
-            showAuthMsg("🔒 2-Step Verification required!"); 
-            document.getElementById('code-step').classList.add('hidden'); 
-            document.getElementById('password-step').classList.remove('hidden');  
-        } else if (data.state === 'logged_in') {  
-            showAuthMsg("✅ Account Added Successfully!"); 
-            setTimeout(() => location.reload(), 1500);   
-        }  
-    }
+        .soft-divider {
+            background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.24), transparent);
+            height: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
+        <div id="fallback-banner" class="hidden mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"></div>
 
-    // ==========================================  
-    // DASHBOARD LOGIC (CHAT, SEARCH, SCAN)
-    // ==========================================  
-    async function sendChat() {  
-        const inputEl = document.getElementById('chat-input');  
-        const message = inputEl.value.trim();  
-        if (!message) return;  
-
-        appendMessage('You', message, 'bg-gray-800 text-white self-end text-right border-gray-700');  
-        inputEl.value = '';  
-
-        if (chatHistory.length === 0) chatHistory.push({ role: "user", parts: [{ text: "You are an expert HR assistant helping to find Telegram groups to hire affiliate agents. Reply shortly in a Hindi/English mix. User message: " + message }] });  
-        else chatHistory.push({ role: "user", parts: [{ text: message }] });  
-
-        const aiBoxId = 'typing-' + Date.now();  
-        appendMessage('AI HR', '<i class="fas fa-ellipsis-h fa-fade"></i> Thinking...', 'bg-purple-900/40 text-purple-100 border-purple-700', aiBoxId);  
-
-        try {  
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {  
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: chatHistory })  
-            });  
-            const data = await response.json();  
-            const reply = data.candidates[0].content.parts[0].text;  
-            chatHistory.push({ role: "model", parts: [{ text: reply }] });  
-            document.getElementById(aiBoxId).innerHTML = `<strong>AI HR:</strong> ${reply}`;  
-        } catch (err) {  
-            document.getElementById(aiBoxId).innerHTML = `<span class="text-red-400"><strong>Error:</strong> ${err.message}</span>`;  
-            chatHistory.pop();   
-        }  
-    }  
-
-    function appendMessage(sender, text, classes, id="") {  
-        const chatBox = document.getElementById('chat-box');  
-        const msgDiv = document.createElement('div');  
-        if(id) msgDiv.id = id;  
-        msgDiv.className = `text-sm p-3 rounded-lg border w-[85%] ${classes}`;  
-        if(sender === 'You') msgDiv.classList.add('ml-auto');  
-        msgDiv.innerHTML = sender === 'You' ? `<strong>${sender}:</strong> ${text}` : text;  
-        chatBox.appendChild(msgDiv);  
-        chatBox.scrollTop = chatBox.scrollHeight;  
-    }  
-
-    async function triggerAutoSearch() {  
-        const btn = document.getElementById('auto-search-btn');  
-        const niche = document.getElementById('final-niche').value.trim();  
-        if(!niche) return alert("Pehle Niche type karein!");  
-
-        btn.disabled = true;  
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finding...';  
-
-        try {  
-            const response = await fetch('/api/auto-search', { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ niche: niche, activeAccount: activeAccountPhone }) 
-            });  
-            const data = await response.json();  
-            if (data.success) {  
-                currentGroupsList = data.groups;  
-                document.getElementById('total-count').innerText = currentGroupsList.length;  
-            } else {
-                alert("Error: " + data.error);
-            }
-        } catch (error) { alert("Error searching groups!"); } finally {  
-            btn.disabled = false; btn.innerHTML = 'Find Groups';  
-        }  
-    }  
-
-    async function scanAndScoreGroups() {
-        const statusDiv = document.getElementById('scan-status');
-        const grid = document.getElementById('candidates-grid');
-        if (currentGroupsList.length === 0) return alert("Pehle 'Find Groups' par click karein!");
-
-        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin text-green-400"></i> Scanning for Indian Users...';
-        grid.innerHTML = '<div class="col-span-full text-center py-10 text-green-400"><i class="fas fa-circle-notch fa-spin text-4xl mb-4 block"></i> Extracting Data...</div>';
-
-        try {
-            const response = await fetch('/api/scan-groups', { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ groups: currentGroupsList.map(g => g.username), activeAccount: activeAccountPhone }) 
-            });
-            const data = await response.json();
-            
-            if(data.success) {
-                statusDiv.innerHTML = `<span class="text-green-400 mt-4 block">✅ Scan Complete! Found ${data.candidates.length} Indian leads.</span>`;
-                renderCandidates(data.candidates);
-            } else {
-                statusDiv.innerHTML = `<span class="text-red-400 mt-4 block">❌ Error: ${data.error}</span>`;
-            }
-        } catch (err) { statusDiv.innerHTML = `<span class="text-red-400 mt-4 block">❌ Connection Error</span>`; }
-    }
-
-    function renderCandidates(candidates) {
-        const grid = document.getElementById('candidates-grid');
-        grid.innerHTML = '';
-        if(candidates.length === 0) return grid.innerHTML = '<div class="col-span-full text-center py-10 border border-red-500/50 rounded-xl glass text-red-400">Koi Indian candidate active nahi mila. Doosra Niche try karein.</div>';
-
-        candidates.forEach(user => {
-            let scoreColor = user.score >= 85 ? 'text-green-400' : 'text-yellow-400';
-            let safeReason = user.reason.replace(/'/g, "\\'");
-            
-            grid.innerHTML += `
-            <div class="glass p-5 rounded-xl border border-gray-700 hover:border-indigo-500 transition relative overflow-hidden">
-                <div class="absolute top-0 right-0 bg-gray-800 px-3 py-1 rounded-bl-xl border-l border-b border-gray-700 font-black ${scoreColor}">
-                    ${user.score}% Match
+        <nav class="glass sticky top-4 z-40 mt-4 rounded-3xl px-4 py-4 sm:px-6">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300">
+                        <i class="fa-brands fa-telegram text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Browser-only workflow</p>
+                        <h1 class="text-2xl font-black text-white">TG Scanner · GramJS Dashboard</h1>
+                        <p class="mt-1 text-sm text-slate-400">No Express required. Login, search, scan, and DM directly from the browser.</p>
+                    </div>
                 </div>
-                <h3 class="font-bold text-white text-lg mb-1">${user.username}</h3>
-                <p class="text-xs text-blue-400 font-bold mb-3 uppercase tracking-wider"><i class="fas fa-tag"></i> ${user.category}</p>
-                <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-800 text-sm text-gray-300 mb-4 h-[70px] overflow-y-auto scrollbar-thin">
-                    <i class="fas fa-quote-left text-gray-600 mr-2"></i> ${user.reason}
+
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <label class="glass flex min-w-[240px] items-center gap-3 rounded-2xl px-4 py-3">
+                        <i class="fa-solid fa-user-group text-slate-400"></i>
+                        <select id="account-switcher" class="w-full bg-transparent text-sm font-semibold text-white outline-none">
+                            <option value="">No account selected</option>
+                        </select>
+                    </label>
+                    <button id="open-login-btn" class="rounded-2xl bg-sky-500 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-sky-400">
+                        <i class="fa-solid fa-plus mr-2"></i>Add account
+                    </button>
                 </div>
-                <button onclick="openDmModal('${user.username}', '${user.category}', '${safeReason}')" class="w-full bg-gray-700 hover:bg-indigo-600 text-white py-2 rounded-lg text-sm font-bold transition flex justify-center items-center gap-2">
-                    <i class="fas fa-paper-plane"></i> Select for Outreach
+            </div>
+        </nav>
+
+        <header class="mt-6 grid gap-4 lg:grid-cols-[1.3fr,0.7fr]">
+            <section class="glass rounded-[28px] p-6 sm:p-8">
+                <div class="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <span class="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-sky-200">
+                            <i class="fa-solid fa-bolt"></i> Pure client-side
+                        </span>
+                        <h2 class="mt-4 text-3xl font-black text-white sm:text-4xl">Step-based Telegram lead finder</h2>
+                        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                            Step 1 login karo, Step 2 groups dhoondo, Step 3 AI scan chalao, Step 4 personalized outreach bhejo.
+                            Agar browser MTProto/CDN block ho jaye, fallback note automatically dikh jayega.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3 text-center text-sm">
+                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                            <div id="stat-accounts" class="text-2xl font-black text-white">0</div>
+                            <div class="mt-1 text-slate-400">Accounts</div>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                            <div id="stat-groups" class="text-2xl font-black text-white">0</div>
+                            <div class="mt-1 text-slate-400">Groups</div>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                            <div id="stat-leads" class="text-2xl font-black text-white">0</div>
+                            <div class="mt-1 text-slate-400">Leads</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="glass rounded-[28px] p-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-bold text-white">Live status</h2>
+                    <span id="gram-status-badge" class="rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100">Loading GramJS…</span>
+                </div>
+                <div class="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                    <p id="active-account-line" class="text-sm text-slate-300">No active account selected.</p>
+                    <div class="mt-4">
+                        <div class="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
+                            <span>Operation progress</span>
+                            <span id="operation-progress-text">Idle</span>
+                        </div>
+                        <div class="h-2 overflow-hidden rounded-full bg-slate-800">
+                            <div id="operation-progress-bar" class="progress-bar h-full w-0 rounded-full bg-gradient-to-r from-sky-400 to-violet-500"></div>
+                        </div>
+                    </div>
+                    <div id="operation-status" class="mt-4 text-sm text-slate-400">Ready to start.</div>
+                </div>
+            </section>
+        </header>
+
+        <section class="mt-6 grid gap-3 md:grid-cols-4">
+            <div id="step-1" class="step-pill glass rounded-2xl border px-4 py-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">1</div>
+                    <div>
+                        <div class="font-bold text-white">Login</div>
+                        <div class="text-xs text-slate-400">Phone → OTP → 2FA</div>
+                    </div>
+                </div>
+            </div>
+            <div id="step-2" class="step-pill glass rounded-2xl border px-4 py-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">2</div>
+                    <div>
+                        <div class="font-bold text-white">Find groups</div>
+                        <div class="text-xs text-slate-400">AI keyword search</div>
+                    </div>
+                </div>
+            </div>
+            <div id="step-3" class="step-pill glass rounded-2xl border px-4 py-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">3</div>
+                    <div>
+                        <div class="font-bold text-white">Scan leads</div>
+                        <div class="text-xs text-slate-400">Messages → AI scoring</div>
+                    </div>
+                </div>
+            </div>
+            <div id="step-4" class="step-pill glass rounded-2xl border px-4 py-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">4</div>
+                    <div>
+                        <div class="font-bold text-white">Outreach</div>
+                        <div class="text-xs text-slate-400">Personalized DMs</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <main class="mt-6 grid gap-6 xl:grid-cols-[0.95fr,1.05fr]">
+            <section class="space-y-6">
+                <article class="glass rounded-[28px] p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Step 1</p>
+                            <h3 class="mt-1 text-xl font-black text-white">Logged-in accounts</h3>
+                            <p class="mt-2 text-sm text-slate-400">Multi-account sessions are saved in localStorage by phone number.</p>
+                        </div>
+                        <button id="step-login-btn" class="rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-100 transition hover:bg-sky-500/20">
+                            <i class="fa-solid fa-right-to-bracket mr-2"></i>Login / Add account
+                        </button>
+                    </div>
+                    <div class="soft-divider my-5"></div>
+                    <div id="accounts-list" class="space-y-3"></div>
+                    <div class="soft-divider my-5"></div>
+                    <div class="rounded-3xl border border-white/10 bg-slate-950/40 p-4">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <h4 class="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">Gemini browser key</h4>
+                                <p class="mt-2 text-sm text-slate-400">Security reason ki wajah se Gemini key HTML me hardcode nahi hai. Ek baar paste karo, browser localStorage me save ho jayegi.</p>
+                            </div>
+                            <span id="gemini-key-state" class="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100">Key missing</span>
+                        </div>
+                        <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+                            <input id="gemini-key-input" type="password" class="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-sm text-white outline-none transition focus:border-sky-400/40" placeholder="Paste Gemini API key">
+                            <button id="save-gemini-btn" class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-bold text-slate-100 transition hover:bg-white/10">Save key</button>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="glass rounded-[28px] p-6">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Step 4</p>
+                            <h3 class="mt-1 text-xl font-black text-white">Base outreach template</h3>
+                            <p class="mt-2 text-sm text-slate-400">Isi message se AI har lead ke liye custom opener banayega.</p>
+                        </div>
+                        <span class="rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-100">AI personalization</span>
+                    </div>
+                    <textarea id="base-template" rows="7" class="mt-5 w-full rounded-3xl border border-white/10 bg-slate-950/50 px-4 py-4 text-sm text-white outline-none transition focus:border-violet-400/40" placeholder="Hi! Hum iGaming / affiliate growth side par strong traffic partners dekh rahe hain. Agar aap collaboration ke liye open ho to batayein."></textarea>
+                </article>
+            </section>
+
+            <section class="space-y-6">
+                <article class="glass rounded-[28px] p-6">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Step 2</p>
+                            <h3 class="mt-1 text-xl font-black text-white">Find Telegram groups</h3>
+                            <p class="mt-2 text-sm text-slate-400">Gemini niche ko smart search keywords me convert karega, phir active account se public groups dhoondega.</p>
+                        </div>
+                        <button id="search-btn" class="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60">
+                            <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Find groups
+                        </button>
+                    </div>
+                    <div class="mt-5 grid gap-4 lg:grid-cols-[1fr,auto]">
+                        <input id="niche-input" type="text" class="rounded-3xl border border-white/10 bg-slate-950/50 px-4 py-4 text-sm text-white outline-none transition focus:border-sky-400/40" placeholder="e.g. casino affiliates, students part time, cricket traffic buyers">
+                        <button id="sample-niche-btn" class="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-slate-200 transition hover:bg-white/10">Use sample niche</button>
+                    </div>
+                    <div class="mt-5">
+                        <div class="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">Keywords used</div>
+                        <div id="keyword-chips" class="flex flex-wrap gap-2"></div>
+                    </div>
+                </article>
+
+                <article class="glass rounded-[28px] p-6">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Groups found</p>
+                            <h3 class="mt-1 text-xl font-black text-white">Choose groups to scan</h3>
+                            <p id="groups-summary" class="mt-2 text-sm text-slate-400">Search results yahan cards ke form me aayenge.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="select-all-btn" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10">Select all</button>
+                            <button id="clear-all-btn" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10">Deselect all</button>
+                        </div>
+                    </div>
+                    <div id="groups-grid" class="grid-scroll mt-5 grid max-h-[460px] gap-4 overflow-y-auto md:grid-cols-2"></div>
+                </article>
+
+                <article class="glass rounded-[28px] p-6">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Step 3</p>
+                            <h3 class="mt-1 text-xl font-black text-white">AI lead scan</h3>
+                            <p class="mt-2 text-sm text-slate-400">Selected groups ke recent messages read karke high-intent leads nikale jayenge.</p>
+                        </div>
+                        <button id="scan-btn" class="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60">
+                            <i class="fa-solid fa-radar mr-2"></i>Scan selected groups
+                        </button>
+                    </div>
+                    <div id="scan-note" class="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-slate-300">Ready for scan.</div>
+                </article>
+            </section>
+        </main>
+
+        <section class="mt-6 glass rounded-[30px] p-6">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Candidates</p>
+                    <h3 class="mt-1 text-2xl font-black text-white">Scored outreach candidates</h3>
+                    <p class="mt-2 text-sm text-slate-400">Score bar, category badge, reason snippet, aur per-user AI DM action.</p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+                    Active account:
+                    <span id="candidate-active-account" class="font-bold text-white">None</span>
+                </div>
+            </div>
+            <div id="candidates-grid" class="candidate-scroll mt-6 grid max-h-[760px] gap-5 overflow-y-auto lg:grid-cols-2 xl:grid-cols-3"></div>
+        </section>
+    </div>
+
+    <div id="login-modal" class="modal-backdrop hidden fixed inset-0 z-50 items-center justify-center px-4 py-6">
+        <div class="modal-scroll glass max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-[32px] p-6 sm:p-8">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Telegram login</p>
+                    <h3 class="mt-1 text-2xl font-black text-white">Add or recover account</h3>
+                    <p class="mt-2 text-sm text-slate-400">Clean browser-only auth flow: phone → OTP → 2FA → save session in localStorage.</p>
+                </div>
+                <button id="close-login-btn" class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-300 transition hover:bg-white/10">
+                    <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
-            </div>`;
-        });
-    }
+            </div>
 
-    // ==========================================  
-    // DM & PEER_FLOOD ERROR HANDLING
-    // ==========================================  
-    async function openDmModal(username, category, reason) {
-        const baseTemplate = document.getElementById('base-template').value.trim();
-        if(!baseTemplate) return alert("Pehle Step 4 mein ek Outreach Base Template type karein!");
-        
-        currentDmUser = username;
-        document.getElementById('modal-username').innerText = username;
-        document.getElementById('dm-modal').classList.remove('hidden');
-        document.getElementById('modal-loader').classList.remove('hidden');
-        document.getElementById('final-dm-text').classList.add('hidden');
-        document.getElementById('action-buttons').classList.add('hidden');
-        document.getElementById('send-status').innerHTML = '';
+            <div class="mt-6 grid gap-3 sm:grid-cols-3">
+                <div id="login-step-phone" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">1. Phone</div>
+                <div id="login-step-otp" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">2. OTP</div>
+                <div id="login-step-password" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">3. 2FA / Done</div>
+            </div>
 
-        try {
-            const prompt = `You are an HR sending an outreach message on Telegram. Here is your base template: "${baseTemplate}"
-            Personalize this exact template slightly to sound natural for an INDIAN user who is categorized as "${category}" because: "${reason}".
-            Keep the core message same, just add a friendly 1-line hook at the start acknowledging their specific expertise. You can use a mix of Hindi-English (Hinglish) if it fits naturally. Output ONLY the final message text.`;
-            
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, { 
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) 
+            <div class="mt-6 rounded-3xl border border-white/10 bg-slate-950/45 p-5">
+                <label class="block text-xs uppercase tracking-[0.25em] text-slate-500">Phone number</label>
+                <input id="login-phone-input" type="text" class="mt-3 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-white outline-none transition focus:border-sky-400/40" placeholder="+919876543210">
+
+                <div id="otp-box" class="hidden">
+                    <label class="mt-5 block text-xs uppercase tracking-[0.25em] text-slate-500">Telegram OTP</label>
+                    <input id="login-otp-input" type="text" class="mt-3 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-white outline-none transition focus:border-sky-400/40" placeholder="12345">
+                </div>
+
+                <div id="password-box" class="hidden">
+                    <label class="mt-5 block text-xs uppercase tracking-[0.25em] text-slate-500">2-step password</label>
+                    <input id="login-password-input" type="password" class="mt-3 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-white outline-none transition focus:border-violet-400/40" placeholder="Password">
+                </div>
+
+                <div id="login-status" class="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">Ready.</div>
+
+                <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+                    <button id="send-phone-btn" class="rounded-2xl bg-sky-500 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-sky-400">Send OTP</button>
+                    <button id="verify-otp-btn" class="hidden rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400">Verify OTP</button>
+                    <button id="verify-password-btn" class="hidden rounded-2xl bg-violet-500 px-5 py-4 text-sm font-black text-white transition hover:bg-violet-400">Submit password</button>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <div class="mb-3 flex items-center justify-between">
+                    <h4 class="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">Saved accounts</h4>
+                    <span class="text-xs text-slate-500">Phone-keyed localStorage sessions</span>
+                </div>
+                <div id="login-saved-accounts" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dm-modal" class="modal-backdrop hidden fixed inset-0 z-50 items-center justify-center px-4 py-6">
+        <div class="modal-scroll glass max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[32px] p-6 sm:p-8">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Outreach composer</p>
+                    <h3 class="mt-1 text-2xl font-black text-white">Send personalized Telegram DM</h3>
+                    <p id="dm-target-line" class="mt-2 text-sm text-slate-400">Lead details will appear here.</p>
+                </div>
+                <button id="close-dm-btn" class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-300 transition hover:bg-white/10">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="dm-special-alert" class="hidden mt-6 rounded-3xl border border-red-400/20 bg-red-500/10 px-4 py-4 text-sm text-red-100"></div>
+
+            <div class="mt-6 rounded-3xl border border-white/10 bg-slate-950/40 p-5">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="text-sm text-slate-300">
+                        Sending from <span id="dm-active-account" class="font-bold text-white">None</span>
+                    </div>
+                    <button id="regenerate-dm-btn" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10">Regenerate AI draft</button>
+                </div>
+                <div id="dm-status" class="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">AI draft ready hone par yahan status show hoga.</div>
+                <textarea id="dm-text" rows="10" class="mt-4 w-full rounded-3xl border border-white/10 bg-slate-900/70 px-4 py-4 text-sm text-white outline-none transition focus:border-violet-400/40" placeholder="Personalized DM"></textarea>
+                <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+                    <button id="send-dm-btn" class="rounded-2xl bg-violet-500 px-5 py-4 text-sm font-black text-white transition hover:bg-violet-400">Send DM now</button>
+                    <button id="switch-account-btn" class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-slate-200 transition hover:bg-white/10">Switch / add account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-4 right-4 z-[70] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-3"></div>
+
+    <script type="module">
+        const API_ID = 39942557;
+        const API_HASH = '77a67551c7f83be89c33da3a95eefea0';
+        const STORAGE_KEYS = {
+            accounts: 'tg_browser_accounts_v1',
+            activePhone: 'tg_browser_active_phone_v1',
+            geminiKey: 'tg_browser_gemini_key_v1'
+        };
+
+        const TELEGRAM_CANDIDATES = [
+            {
+                label: 'unpkg browser build',
+                loader: () => loadTelegramFromScript('https://unpkg.com/telegram@2.26.22/dist/browser/index.js')
+            },
+            {
+                label: 'jsdelivr esm',
+                loader: async () => {
+                    const telegramModule = await import('https://cdn.jsdelivr.net/npm/telegram@2.26.22/+esm');
+                    const sessionsModule = await import('https://cdn.jsdelivr.net/npm/telegram@2.26.22/sessions/+esm');
+                    return {
+                        TelegramClient: telegramModule.TelegramClient,
+                        Api: telegramModule.Api,
+                        StringSession: sessionsModule.StringSession
+                    };
+                }
+            },
+            {
+                label: 'esm.sh',
+                loader: async () => {
+                    const telegramModule = await import('https://esm.sh/telegram@2.26.22');
+                    const sessionsModule = await import('https://esm.sh/telegram@2.26.22/sessions');
+                    return {
+                        TelegramClient: telegramModule.TelegramClient,
+                        Api: telegramModule.Api,
+                        StringSession: sessionsModule.StringSession
+                    };
+                }
+            },
+            {
+                label: 'skypack',
+                loader: async () => {
+                    const telegramModule = await import('https://cdn.skypack.dev/telegram@2.26.22');
+                    const sessionsModule = await import('https://cdn.skypack.dev/telegram@2.26.22/sessions');
+                    return {
+                        TelegramClient: telegramModule.TelegramClient,
+                        Api: telegramModule.Api,
+                        StringSession: sessionsModule.StringSession
+                    };
+                }
+            }
+        ];
+
+        const SAMPLE_NICHES = [
+            'casino affiliates india',
+            'students part time jobs',
+            'cricket traffic buyers',
+            'hindi promoter groups'
+        ];
+
+        const state = {
+            gram: null,
+            gramLabel: '',
+            gramError: '',
+            accounts: loadAccounts(),
+            activePhone: localStorage.getItem(STORAGE_KEYS.activePhone) || '',
+            clients: new Map(),
+            groups: [],
+            candidates: [],
+            keywords: [],
+            operation: { label: 'Idle', done: 0, total: 0 },
+            authFlow: null,
+            dmLead: null,
+            ui: {
+                loginOpen: false,
+                dmOpen: false
+            }
+        };
+
+        const els = {
+            fallbackBanner: document.getElementById('fallback-banner'),
+            accountSwitcher: document.getElementById('account-switcher'),
+            openLoginBtn: document.getElementById('open-login-btn'),
+            stepLoginBtn: document.getElementById('step-login-btn'),
+            accountsList: document.getElementById('accounts-list'),
+            statAccounts: document.getElementById('stat-accounts'),
+            statGroups: document.getElementById('stat-groups'),
+            statLeads: document.getElementById('stat-leads'),
+            gramStatusBadge: document.getElementById('gram-status-badge'),
+            activeAccountLine: document.getElementById('active-account-line'),
+            operationProgressText: document.getElementById('operation-progress-text'),
+            operationProgressBar: document.getElementById('operation-progress-bar'),
+            operationStatus: document.getElementById('operation-status'),
+            nicheInput: document.getElementById('niche-input'),
+            sampleNicheBtn: document.getElementById('sample-niche-btn'),
+            searchBtn: document.getElementById('search-btn'),
+            keywordChips: document.getElementById('keyword-chips'),
+            groupsSummary: document.getElementById('groups-summary'),
+            groupsGrid: document.getElementById('groups-grid'),
+            selectAllBtn: document.getElementById('select-all-btn'),
+            clearAllBtn: document.getElementById('clear-all-btn'),
+            scanBtn: document.getElementById('scan-btn'),
+            scanNote: document.getElementById('scan-note'),
+            candidatesGrid: document.getElementById('candidates-grid'),
+            candidateActiveAccount: document.getElementById('candidate-active-account'),
+            baseTemplate: document.getElementById('base-template'),
+            geminiKeyState: document.getElementById('gemini-key-state'),
+            geminiKeyInput: document.getElementById('gemini-key-input'),
+            saveGeminiBtn: document.getElementById('save-gemini-btn'),
+            loginModal: document.getElementById('login-modal'),
+            closeLoginBtn: document.getElementById('close-login-btn'),
+            loginSavedAccounts: document.getElementById('login-saved-accounts'),
+            loginPhoneInput: document.getElementById('login-phone-input'),
+            loginOtpInput: document.getElementById('login-otp-input'),
+            loginPasswordInput: document.getElementById('login-password-input'),
+            otpBox: document.getElementById('otp-box'),
+            passwordBox: document.getElementById('password-box'),
+            loginStatus: document.getElementById('login-status'),
+            sendPhoneBtn: document.getElementById('send-phone-btn'),
+            verifyOtpBtn: document.getElementById('verify-otp-btn'),
+            verifyPasswordBtn: document.getElementById('verify-password-btn'),
+            loginStepPhone: document.getElementById('login-step-phone'),
+            loginStepOtp: document.getElementById('login-step-otp'),
+            loginStepPassword: document.getElementById('login-step-password'),
+            dmModal: document.getElementById('dm-modal'),
+            closeDmBtn: document.getElementById('close-dm-btn'),
+            dmTargetLine: document.getElementById('dm-target-line'),
+            dmSpecialAlert: document.getElementById('dm-special-alert'),
+            dmActiveAccount: document.getElementById('dm-active-account'),
+            regenerateDmBtn: document.getElementById('regenerate-dm-btn'),
+            dmStatus: document.getElementById('dm-status'),
+            dmText: document.getElementById('dm-text'),
+            sendDmBtn: document.getElementById('send-dm-btn'),
+            switchAccountBtn: document.getElementById('switch-account-btn'),
+            toastContainer: document.getElementById('toast-container')
+        };
+
+        if (!state.accounts[state.activePhone]) {
+            state.activePhone = Object.keys(state.accounts)[0] || '';
+            persistActivePhone();
+        }
+
+        bindEvents();
+        render();
+        bootstrap();
+
+        async function bootstrap() {
+            await loadGramJS();
+            if (state.activePhone && state.gram) {
+                try {
+                    setOperation(`Connecting ${state.activePhone}...`, 1, 1);
+                    await ensureClient(state.activePhone);
+                    setOperation('Ready.', 0, 0);
+                } catch (error) {
+                    handleClientFailure(state.activePhone, error);
+                }
+            }
+            if (!Object.keys(state.accounts).length) {
+                openLoginModal();
+            }
+        }
+
+        function bindEvents() {
+            els.openLoginBtn.addEventListener('click', openLoginModal);
+            els.stepLoginBtn.addEventListener('click', openLoginModal);
+            els.closeLoginBtn.addEventListener('click', closeLoginModal);
+            els.closeDmBtn.addEventListener('click', closeDmModal);
+            els.sampleNicheBtn.addEventListener('click', () => {
+                const niche = SAMPLE_NICHES[Math.floor(Math.random() * SAMPLE_NICHES.length)];
+                els.nicheInput.value = niche;
             });
-            const data = await response.json();
-            document.getElementById('final-dm-text').value = data.candidates[0].content.parts[0].text;
-        } catch(e) { document.getElementById('final-dm-text').value = baseTemplate; } // Fallback
-
-        document.getElementById('modal-loader').classList.add('hidden');
-        document.getElementById('final-dm-text').classList.remove('hidden');
-        document.getElementById('action-buttons').classList.remove('hidden');
-    }
-
-    async function sendActualDM() {
-        const btn = document.getElementById('confirm-send-btn');
-        const statusDiv = document.getElementById('send-status');
-        const messageText = document.getElementById('final-dm-text').value.trim();
-
-        btn.disabled = true; 
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-        statusDiv.innerHTML = `<span class="text-yellow-400">Sending from ${activeAccountPhone}...</span>`;
-
-        try {
-            const response = await fetch('/api/send-dm', { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ username: currentDmUser, message: messageText, activeAccount: activeAccountPhone }) 
+            els.accountSwitcher.addEventListener('change', async (event) => {
+                state.activePhone = event.target.value;
+                persistActivePhone();
+                render();
+                if (state.activePhone && state.gram) {
+                    try {
+                        setOperation(`Switching to ${state.activePhone}...`, 1, 1);
+                        await ensureClient(state.activePhone);
+                    } catch (error) {
+                        handleClientFailure(state.activePhone, error);
+                    } finally {
+                        setOperation('Ready.', 0, 0);
+                    }
+                }
             });
-            const data = await response.json();
+            els.sendPhoneBtn.addEventListener('click', beginLogin);
+            els.verifyOtpBtn.addEventListener('click', submitOtp);
+            els.verifyPasswordBtn.addEventListener('click', submitPassword);
+            els.searchBtn.addEventListener('click', handleSearch);
+            els.scanBtn.addEventListener('click', handleScan);
+            els.selectAllBtn.addEventListener('click', () => {
+                state.groups = state.groups.map(group => ({ ...group, selected: true }));
+                render();
+            });
+            els.clearAllBtn.addEventListener('click', () => {
+                state.groups = state.groups.map(group => ({ ...group, selected: false }));
+                render();
+            });
+            els.regenerateDmBtn.addEventListener('click', () => generateDmDraft(true));
+            els.sendDmBtn.addEventListener('click', sendDmToLead);
+            els.switchAccountBtn.addEventListener('click', () => {
+                closeDmModal();
+                openLoginModal();
+            });
+            els.nicheInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleSearch();
+                }
+            });
+            els.baseTemplate.addEventListener('input', renderStepper);
+            els.saveGeminiBtn.addEventListener('click', saveGeminiKey);
+            els.geminiKeyInput.addEventListener('keydown', event => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    saveGeminiKey();
+                }
+            });
+            [els.loginPhoneInput, els.loginOtpInput, els.loginPasswordInput].forEach(input => {
+                input.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter') return;
+                    if (!state.authFlow || state.authFlow.step === 'phone') beginLogin();
+                    else if (state.authFlow.step === 'otp') submitOtp();
+                    else if (state.authFlow.step === 'password') submitPassword();
+                });
+            });
+        }
 
-            if (data.success) {
-                statusDiv.innerHTML = '<span class="text-green-400"><i class="fas fa-check-circle"></i> Message Sent Successfully!</span>';
-                btn.classList.add('hidden');
-                setTimeout(() => document.getElementById('dm-modal').classList.add('hidden'), 2000);
+        function loadAccounts() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEYS.accounts);
+                return raw ? JSON.parse(raw) : {};
+            } catch {
+                return {};
+            }
+        }
+
+        function saveAccounts() {
+            localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(state.accounts));
+        }
+
+        function persistActivePhone() {
+            if (state.activePhone) localStorage.setItem(STORAGE_KEYS.activePhone, state.activePhone);
+            else localStorage.removeItem(STORAGE_KEYS.activePhone);
+        }
+
+        function setOperation(label, done = 0, total = 0) {
+            state.operation = { label, done, total };
+            renderOperation();
+        }
+
+        function renderOperation() {
+            const { label, done, total } = state.operation;
+            els.operationProgressText.textContent = total > 0 ? `${done}/${total}` : 'Idle';
+            els.operationStatus.textContent = label;
+            const width = total > 0 ? Math.min(100, Math.max(0, (done / total) * 100)) : 0;
+            els.operationProgressBar.style.width = `${width}%`;
+        }
+
+        function render() {
+            renderNav();
+            renderAccounts();
+            renderKeywords();
+            renderGroups();
+            renderCandidates();
+            renderOperation();
+            renderLoginModal();
+            renderDmModal();
+            renderStepper();
+            updateDisabledStates();
+        }
+
+        function renderNav() {
+            const phones = Object.keys(state.accounts);
+            els.accountSwitcher.innerHTML = phones.length
+                ? phones.map(phone => {
+                    const account = state.accounts[phone];
+                    const label = `${account.name || phone} (${phone})`;
+                    return `<option value="${escapeHtml(phone)}" ${phone === state.activePhone ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+                }).join('')
+                : '<option value="">No accounts saved</option>';
+
+            els.statAccounts.textContent = phones.length;
+            els.statGroups.textContent = state.groups.length;
+            els.statLeads.textContent = state.candidates.length;
+            els.candidateActiveAccount.textContent = state.activePhone || 'None';
+            const geminiKeySaved = Boolean(localStorage.getItem(STORAGE_KEYS.geminiKey));
+            els.geminiKeyState.className = `rounded-full px-3 py-1 text-xs font-semibold ${geminiKeySaved ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : 'border border-amber-400/20 bg-amber-500/10 text-amber-100'}`;
+            els.geminiKeyState.textContent = geminiKeySaved ? 'Key saved' : 'Key missing';
+
+            if (state.gram) {
+                els.gramStatusBadge.className = 'rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-100';
+                els.gramStatusBadge.textContent = `GramJS ready · ${state.gramLabel}`;
+            } else if (state.gramError) {
+                els.gramStatusBadge.className = 'rounded-full border border-red-400/25 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-100';
+                els.gramStatusBadge.textContent = 'GramJS unavailable';
             } else {
-                // 👉 SMART PEER_FLOOD DETECTION
-                if (data.error && data.error.includes('PEER_FLOOD')) {
-                    statusDiv.innerHTML = `
-                        <div class="bg-red-900/40 border border-red-700 p-3 rounded-lg text-left mt-2 shadow-lg">
-                            <span class="text-red-400 font-bold block mb-1"><i class="fas fa-ban"></i> Account Restricted</span>
-                            <span class="text-gray-300 text-xs font-normal">Is account (${activeAccountPhone}) se abhi aur messages nahi ja sakte (PEER_FLOOD limit reached).</span>
-                            <button onclick="document.getElementById('dm-modal').classList.add('hidden'); document.getElementById('login-modal').classList.remove('hidden');" class="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-bold transition flex justify-center items-center gap-2 text-sm shadow-md">
-                                <i class="fas fa-user-plus"></i> Login New Account
-                            </button>
+                els.gramStatusBadge.className = 'rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100';
+                els.gramStatusBadge.textContent = 'Loading GramJS…';
+            }
+
+            const active = state.activePhone ? state.accounts[state.activePhone] : null;
+            els.activeAccountLine.textContent = active
+                ? `Active account: ${active.name || state.activePhone} · ${state.activePhone}${active.username ? ` · ${active.username}` : ''}`
+                : 'No active account selected.';
+
+            if (state.gramError) {
+                els.fallbackBanner.classList.remove('hidden');
+                els.fallbackBanner.innerHTML = `
+                    <strong class="font-bold">Browser GramJS load failed.</strong>
+                    <span class="block mt-1 text-amber-50/90">
+                        CDN/WSS ya browser restrictions ki wajah se Telegram client start nahi hua. Dusra browser/network try karein.
+                        Agar phir bhi issue aaye to temporary fallback ke liye local server run karna padega.
+                    </span>
+                    <span class="mt-2 block text-xs text-amber-100/80">${escapeHtml(state.gramError)}</span>
+                `;
+            } else {
+                els.fallbackBanner.classList.add('hidden');
+                els.fallbackBanner.textContent = '';
+            }
+        }
+
+        function renderAccounts() {
+            const accounts = Object.entries(state.accounts);
+            if (!accounts.length) {
+                els.accountsList.innerHTML = `
+                    <div class="rounded-3xl border border-dashed border-white/10 bg-slate-950/35 px-5 py-6 text-center text-sm text-slate-400">
+                        Abhi tak koi account saved nahi hai. "Add account" se browser-only Telegram login start karein.
+                    </div>
+                `;
+            } else {
+                els.accountsList.innerHTML = accounts.map(([phone, account]) => {
+                    const isActive = phone === state.activePhone;
+                    return `
+                        <div class="card-hover rounded-3xl border ${isActive ? 'border-sky-400/30 bg-sky-500/10' : 'border-white/10 bg-white/5'} px-4 py-4">
+                            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="flex items-center gap-4">
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-lg font-black text-white">${escapeHtml(account.initials || initials(account.name || phone))}</div>
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h4 class="font-bold text-white">${escapeHtml(account.name || phone)}</h4>
+                                            ${isActive ? '<span class="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">active</span>' : ''}
+                                        </div>
+                                        <p class="mt-1 text-sm text-slate-300">${escapeHtml(phone)}</p>
+                                        <p class="mt-1 text-xs text-slate-500">${escapeHtml(account.username || 'No public username saved')}</p>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button data-action="activate-account" data-phone="${escapeHtml(phone)}" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10">${isActive ? 'Selected' : 'Use this account'}</button>
+                                    <button data-action="logout-account" data-phone="${escapeHtml(phone)}" class="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500/20">Logout</button>
+                                </div>
+                            </div>
                         </div>
                     `;
-                } else {
-                    statusDiv.innerHTML = `<span class="text-red-400"><i class="fas fa-times-circle"></i> Error: ${data.error}</span>`;
-                }
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Try Again';
+                }).join('');
             }
-        } catch (err) { 
-            statusDiv.innerHTML = `<span class="text-red-400">❌ Connection failed.</span>`; 
-            btn.disabled = false; 
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Try Again';
-        }
-    }
-</script>
 
-</body>  
+            els.loginSavedAccounts.innerHTML = Object.entries(state.accounts).length
+                ? Object.entries(state.accounts).map(([phone, account]) => `
+                    <div class="rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-sm font-black text-white">${escapeHtml(account.initials || initials(account.name || phone))}</div>
+                                <div>
+                                    <div class="font-semibold text-white">${escapeHtml(account.name || phone)}</div>
+                                    <div class="text-xs text-slate-400">${escapeHtml(phone)}</div>
+                                </div>
+                            </div>
+                            <button data-action="logout-account" data-phone="${escapeHtml(phone)}" class="rounded-2xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100 transition hover:bg-red-500/20">Logout</button>
+                        </div>
+                    </div>
+                `).join('')
+                : '<div class="rounded-3xl border border-dashed border-white/10 bg-slate-950/35 px-5 py-6 text-center text-sm text-slate-400">No saved accounts yet.</div>';
+
+            document.querySelectorAll('[data-action="activate-account"]').forEach(button => {
+                button.addEventListener('click', async () => {
+                    state.activePhone = button.dataset.phone;
+                    persistActivePhone();
+                    render();
+                    if (state.activePhone && state.gram) {
+                        try {
+                            setOperation(`Switching to ${state.activePhone}...`, 1, 1);
+                            await ensureClient(state.activePhone);
+                            showToast(`Active account switched to ${state.activePhone}`, 'success');
+                        } catch (error) {
+                            handleClientFailure(state.activePhone, error);
+                        } finally {
+                            setOperation('Ready.', 0, 0);
+                        }
+                    }
+                });
+            });
+
+            document.querySelectorAll('[data-action="logout-account"]').forEach(button => {
+                button.addEventListener('click', () => logoutAccount(button.dataset.phone));
+            });
+        }
+
+        function renderKeywords() {
+            els.keywordChips.innerHTML = state.keywords.length
+                ? state.keywords.map(keyword => `<span class="rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-100">${escapeHtml(keyword)}</span>`).join('')
+                : '<span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-500">No keywords yet</span>';
+        }
+
+        function renderGroups() {
+            const selectedCount = state.groups.filter(group => group.selected).length;
+            els.groupsSummary.textContent = state.groups.length
+                ? `${state.groups.length} groups found · ${selectedCount} selected for scan`
+                : 'Search results yahan cards ke form me aayenge.';
+
+            if (!state.groups.length) {
+                els.groupsGrid.innerHTML = `
+                    <div class="rounded-3xl border border-dashed border-white/10 bg-slate-950/35 px-5 py-8 text-center text-sm text-slate-400 md:col-span-2">
+                        Search run hone ke baad yahan scrollable group cards milenge.
+                    </div>
+                `;
+                return;
+            }
+
+            els.groupsGrid.innerHTML = state.groups.map((group, index) => `
+                <label class="card-hover flex cursor-pointer flex-col gap-4 rounded-3xl border ${group.selected ? 'border-sky-400/30 bg-sky-500/10' : 'border-white/10 bg-white/5'} p-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex items-start gap-3">
+                            <input type="checkbox" data-group-index="${index}" ${group.selected ? 'checked' : ''} class="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-400 focus:ring-sky-400/30">
+                            <div>
+                                <div class="font-bold text-white">${escapeHtml(group.title)}</div>
+                                <div class="mt-1 text-sm text-slate-300">${escapeHtml(group.username)}</div>
+                            </div>
+                        </div>
+                        <span class="rounded-full border border-white/10 bg-slate-950/50 px-3 py-1 text-xs font-semibold text-slate-300">${formatMembers(group.members)}</span>
+                    </div>
+                    <div class="rounded-2xl border border-white/10 bg-slate-950/45 px-3 py-3 text-xs text-slate-400">
+                        ${escapeHtml(group.hint || 'Public group detected from Telegram search')}
+                    </div>
+                </label>
+            `).join('');
+
+            document.querySelectorAll('[data-group-index]').forEach(checkbox => {
+                checkbox.addEventListener('change', (event) => {
+                    const index = Number(event.target.dataset.groupIndex);
+                    state.groups[index].selected = event.target.checked;
+                    render();
+                });
+            });
+        }
+
+        function renderCandidates() {
+            if (!state.candidates.length) {
+                els.candidatesGrid.innerHTML = `
+                    <div class="rounded-[28px] border border-dashed border-white/10 bg-slate-950/35 px-6 py-12 text-center text-sm text-slate-400 lg:col-span-2 xl:col-span-3">
+                        Scan complete hone ke baad qualified candidates yahan better card layout me show honge.
+                    </div>
+                `;
+                return;
+            }
+
+            els.candidatesGrid.innerHTML = state.candidates.map((candidate, index) => {
+                const barColor = candidate.score >= 85
+                    ? 'from-emerald-400 to-emerald-500'
+                    : candidate.score >= 65
+                        ? 'from-yellow-400 to-orange-400'
+                        : 'from-rose-400 to-red-400';
+                return `
+                    <article class="card-hover rounded-[28px] border border-white/10 bg-white/5 p-5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h4 class="text-lg font-black text-white">${escapeHtml(candidate.username)}</h4>
+                                <div class="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">${escapeHtml(candidate.category || 'Lead')}</div>
+                            </div>
+                            <div class="rounded-2xl border border-white/10 bg-slate-950/50 px-3 py-2 text-right">
+                                <div class="text-[11px] uppercase tracking-[0.2em] text-slate-500">Score</div>
+                                <div class="text-xl font-black text-white">${Number(candidate.score || 0)}%</div>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <div class="mb-2 flex items-center justify-between text-xs text-slate-400">
+                                <span>Fit level</span>
+                                <span>${Number(candidate.score || 0)} / 100</span>
+                            </div>
+                            <div class="h-3 overflow-hidden rounded-full bg-slate-800">
+                                <div class="progress-bar h-full rounded-full bg-gradient-to-r ${barColor}" style="width: ${Math.max(4, Math.min(100, Number(candidate.score || 0)))}%"></div>
+                            </div>
+                        </div>
+                        <blockquote class="mt-4 rounded-3xl border border-white/10 bg-slate-950/45 px-4 py-4 text-sm leading-6 text-slate-300">
+                            <i class="fa-solid fa-quote-left mr-2 text-slate-500"></i>${escapeHtml(candidate.reason || 'No reason available.')}
+                        </blockquote>
+                        <div class="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
+                            <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">Rank #${index + 1}</span>
+                            ${candidate.sourceGroups ? `<span class="rounded-full border border-white/10 bg-white/5 px-3 py-1">${escapeHtml(candidate.sourceGroups)} sources</span>` : ''}
+                        </div>
+                        <button data-candidate-index="${index}" class="mt-5 w-full rounded-2xl bg-violet-500 px-4 py-3 text-sm font-black text-white transition hover:bg-violet-400">
+                            <i class="fa-solid fa-paper-plane mr-2"></i>Send DM
+                        </button>
+                    </article>
+                `;
+            }).join('');
+
+            document.querySelectorAll('[data-candidate-index]').forEach(button => {
+                button.addEventListener('click', () => openDmForCandidate(Number(button.dataset.candidateIndex)));
+            });
+        }
+
+        function renderLoginModal() {
+            els.loginModal.classList.toggle('hidden', !state.ui.loginOpen);
+            els.loginModal.classList.toggle('flex', state.ui.loginOpen);
+
+            const step = state.authFlow?.step || 'phone';
+            setLoginStepState(els.loginStepPhone, step === 'phone' || step === 'sending' || step === 'verifying' || step === 'done', step !== 'phone');
+            setLoginStepState(els.loginStepOtp, step === 'otp' || step === 'verifying' || step === 'done', ['verifying', 'done'].includes(step));
+            setLoginStepState(els.loginStepPassword, step === 'password' || step === 'done', step === 'done');
+
+            els.otpBox.classList.toggle('hidden', step !== 'otp' && step !== 'verifying' && step !== 'done');
+            els.passwordBox.classList.toggle('hidden', step !== 'password' && step !== 'done');
+            els.sendPhoneBtn.classList.toggle('hidden', step !== 'phone');
+            els.verifyOtpBtn.classList.toggle('hidden', step !== 'otp');
+            els.verifyPasswordBtn.classList.toggle('hidden', step !== 'password');
+
+            if (!state.authFlow) {
+                els.loginStatus.className = 'mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300';
+                els.loginStatus.textContent = state.gram
+                    ? 'Ready. Phone enter karke OTP mangwa sakte ho.'
+                    : 'GramJS load hote hi login available ho jayega.';
+            } else {
+                const tone = state.authFlow.error ? 'error' : state.authFlow.step === 'done' ? 'success' : 'neutral';
+                els.loginStatus.className = `mt-5 rounded-2xl border px-4 py-3 text-sm ${tone === 'error' ? 'border-red-400/20 bg-red-500/10 text-red-100' : tone === 'success' ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : 'border-white/10 bg-white/5 text-slate-300'}`;
+                els.loginStatus.textContent = state.authFlow.status || 'Processing...';
+            }
+        }
+
+        function renderDmModal() {
+            els.dmModal.classList.toggle('hidden', !state.ui.dmOpen);
+            els.dmModal.classList.toggle('flex', state.ui.dmOpen);
+
+            if (!state.dmLead) {
+                els.dmTargetLine.textContent = 'Lead details will appear here.';
+                els.dmActiveAccount.textContent = state.activePhone || 'None';
+                els.dmText.value = '';
+                return;
+            }
+
+            els.dmTargetLine.textContent = `${state.dmLead.username} · ${state.dmLead.category || 'Lead'} · score ${state.dmLead.score}%`;
+            els.dmActiveAccount.textContent = state.activePhone || 'None';
+        }
+
+        function renderStepper() {
+            const accountsCount = Object.keys(state.accounts).length;
+            const groupsCount = state.groups.length;
+            const selectedCount = state.groups.filter(group => group.selected).length;
+            const leadsCount = state.candidates.length;
+            const hasTemplate = els.baseTemplate.value.trim().length > 0;
+
+            setStepState(document.getElementById('step-1'), accountsCount > 0, accountsCount > 0);
+            setStepState(document.getElementById('step-2'), accountsCount > 0, groupsCount > 0);
+            setStepState(document.getElementById('step-3'), groupsCount > 0 && selectedCount > 0, leadsCount > 0);
+            setStepState(document.getElementById('step-4'), leadsCount > 0 || hasTemplate, hasTemplate && leadsCount > 0);
+        }
+
+        function updateDisabledStates() {
+            const canUseTelegram = Boolean(state.gram && state.activePhone);
+            els.searchBtn.disabled = !canUseTelegram;
+            els.scanBtn.disabled = !canUseTelegram || !state.groups.some(group => group.selected);
+            els.sendPhoneBtn.disabled = !state.gram;
+            els.regenerateDmBtn.disabled = !state.dmLead;
+            els.sendDmBtn.disabled = !state.dmLead;
+        }
+
+        function setStepState(element, active, done) {
+            element.classList.remove('active', 'done');
+            if (done) element.classList.add('done');
+            else if (active) element.classList.add('active');
+        }
+
+        function setLoginStepState(element, active, done) {
+            element.className = `rounded-2xl border px-4 py-3 text-sm ${done ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : active ? 'border-sky-400/20 bg-sky-500/10 text-sky-100' : 'border-white/10 bg-white/5 text-slate-300'}`;
+        }
+
+        async function loadGramJS() {
+            for (const candidate of TELEGRAM_CANDIDATES) {
+                try {
+                    setOperation(`Loading GramJS from ${candidate.label}...`, 1, 1);
+                    const gram = await candidate.loader();
+                    if (gram?.TelegramClient && gram?.Api && gram?.StringSession) {
+                        state.gram = gram;
+                        state.gramLabel = candidate.label;
+                        state.gramError = '';
+                        setOperation('Ready.', 0, 0);
+                        render();
+                        showToast(`GramJS loaded via ${candidate.label}`, 'success');
+                        return;
+                    }
+                } catch (error) {
+                    state.gramError = `${candidate.label}: ${error.message}`;
+                }
+            }
+
+            setOperation('Fallback mode active.', 0, 0);
+            render();
+            showToast('GramJS load failed. Fallback guidance shown above.', 'warning');
+        }
+
+        function saveGeminiKey() {
+            const value = els.geminiKeyInput.value.trim();
+            if (!value) {
+                localStorage.removeItem(STORAGE_KEYS.geminiKey);
+                render();
+                showToast('Saved Gemini key removed from browser storage.', 'warning');
+                return;
+            }
+            localStorage.setItem(STORAGE_KEYS.geminiKey, value);
+            els.geminiKeyInput.value = '';
+            render();
+            showToast('Gemini key saved in localStorage.', 'success');
+        }
+
+        function loadTelegramFromScript(url) {
+            return new Promise((resolve, reject) => {
+                if (window.telegram?.TelegramClient && (window.telegram.sessions?.StringSession || window.telegram.StringSession)) {
+                    resolve({
+                        TelegramClient: window.telegram.TelegramClient,
+                        Api: window.telegram.Api,
+                        StringSession: window.telegram.sessions?.StringSession || window.telegram.StringSession
+                    });
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = url;
+                script.async = true;
+                script.onload = () => {
+                    if (window.telegram?.TelegramClient && (window.telegram.sessions?.StringSession || window.telegram.StringSession)) {
+                        resolve({
+                            TelegramClient: window.telegram.TelegramClient,
+                            Api: window.telegram.Api,
+                            StringSession: window.telegram.sessions?.StringSession || window.telegram.StringSession
+                        });
+                    } else {
+                        reject(new Error('window.telegram exports not found'));
+                    }
+                };
+                script.onerror = () => reject(new Error(`Unable to load script ${url}`));
+                document.head.appendChild(script);
+            });
+        }
+
+        async function ensureClient(phone, options = {}) {
+            if (!phone) throw new Error('Please select a Telegram account first.');
+            if (!state.gram) throw new Error('GramJS not available in this browser.');
+
+            if (options.forceReconnect && state.clients.has(phone)) {
+                try {
+                    await state.clients.get(phone).disconnect();
+                } catch {}
+                state.clients.delete(phone);
+            }
+
+            if (state.clients.has(phone)) return state.clients.get(phone);
+
+            const account = state.accounts[phone];
+            if (!account?.session) throw new Error(`Saved session missing for ${phone}.`);
+
+            const { TelegramClient, StringSession } = state.gram;
+            const client = new TelegramClient(new StringSession(account.session), API_ID, API_HASH, {
+                connectionRetries: 5
+            });
+
+            try {
+                await withRetry(() => client.connect(), {
+                    attempts: 2,
+                    label: `connect ${phone}`
+                });
+                const me = await client.getMe();
+                state.accounts[phone] = {
+                    ...account,
+                    name: [me?.firstName, me?.lastName].filter(Boolean).join(' ') || account.name || phone,
+                    username: me?.username ? `@${me.username}` : account.username || '',
+                    initials: initials([me?.firstName, me?.lastName].filter(Boolean).join(' ') || phone),
+                    lastConnectedAt: new Date().toISOString()
+                };
+                saveAccounts();
+                state.clients.set(phone, client);
+                render();
+                return client;
+            } catch (error) {
+                try { await client.disconnect(); } catch {}
+                throw error;
+            }
+        }
+
+        async function beginLogin() {
+            const phone = normalizePhone(els.loginPhoneInput.value);
+            if (!phone) {
+                showToast('Phone number with country code daalo. Example: +919876543210', 'warning');
+                return;
+            }
+            if (!state.gram) {
+                showToast('GramJS load nahi hua. Fallback note check karo.', 'warning');
+                return;
+            }
+
+            const { TelegramClient, StringSession } = state.gram;
+            const client = new TelegramClient(new StringSession(''), API_ID, API_HASH, {
+                connectionRetries: 5
+            });
+
+            state.authFlow = {
+                phone,
+                client,
+                step: 'phone',
+                status: 'Telegram se OTP request bhej rahe hain...',
+                error: null,
+                resolveCode: null,
+                resolvePassword: null
+            };
+            render();
+
+            try {
+                await client.connect();
+                state.authFlow.step = 'sending';
+                state.authFlow.status = 'Connection ready. OTP request bhej di gayi hai...';
+                render();
+
+                client.start({
+                    phoneNumber: async () => phone,
+                    phoneCode: async () => {
+                        state.authFlow.step = 'otp';
+                        state.authFlow.status = `OTP aa gaya ho to ${phone} ka code enter karein.`;
+                        render();
+                        return new Promise(resolve => {
+                            state.authFlow.resolveCode = resolve;
+                        });
+                    },
+                    password: async () => {
+                        state.authFlow.step = 'password';
+                        state.authFlow.status = '2-step verification on hai. Password enter karo.';
+                        render();
+                        return new Promise(resolve => {
+                            state.authFlow.resolvePassword = resolve;
+                        });
+                    },
+                    onError: error => {
+                        if (!state.authFlow) return;
+                        state.authFlow.error = error;
+                        state.authFlow.status = friendlyError(error);
+                        render();
+                    }
+                }).then(async () => {
+                    const me = await client.getMe();
+                    state.accounts[phone] = {
+                        phone,
+                        session: client.session.save(),
+                        name: [me?.firstName, me?.lastName].filter(Boolean).join(' ') || phone,
+                        username: me?.username ? `@${me.username}` : '',
+                        initials: initials([me?.firstName, me?.lastName].filter(Boolean).join(' ') || phone),
+                        lastLoginAt: new Date().toISOString()
+                    };
+                    state.clients.set(phone, client);
+                    state.activePhone = phone;
+                    saveAccounts();
+                    persistActivePhone();
+                    state.authFlow.step = 'done';
+                    state.authFlow.status = `Done! ${phone} browser me save ho gaya.`;
+                    render();
+                    showToast(`Account ${phone} added successfully`, 'success');
+                    setTimeout(() => {
+                        state.authFlow = null;
+                        closeLoginModal();
+                        render();
+                    }, 900);
+                }).catch(async error => {
+                    try { await client.disconnect(); } catch {}
+                    if (!state.authFlow) return;
+                    state.authFlow.error = error;
+                    state.authFlow.status = friendlyError(error);
+                    render();
+                    showToast(state.authFlow.status, 'error');
+                });
+            } catch (error) {
+                state.authFlow.error = error;
+                state.authFlow.status = friendlyError(error);
+                render();
+                showToast(state.authFlow.status, 'error');
+            }
+        }
+
+        function submitOtp() {
+            const code = els.loginOtpInput.value.trim();
+            if (!code || !state.authFlow?.resolveCode) {
+                showToast('OTP enter karo pehle.', 'warning');
+                return;
+            }
+            state.authFlow.step = 'verifying';
+            state.authFlow.status = 'OTP verify ho raha hai...';
+            const resolver = state.authFlow.resolveCode;
+            state.authFlow.resolveCode = null;
+            resolver(code);
+            render();
+        }
+
+        function submitPassword() {
+            const password = els.loginPasswordInput.value;
+            if (!password || !state.authFlow?.resolvePassword) {
+                showToast('2-step password enter karo.', 'warning');
+                return;
+            }
+            state.authFlow.status = 'Password verify ho raha hai...';
+            const resolver = state.authFlow.resolvePassword;
+            state.authFlow.resolvePassword = null;
+            resolver(password);
+            render();
+        }
+
+        async function handleSearch() {
+            const niche = els.nicheInput.value.trim();
+            if (!niche) {
+                showToast('Pehle niche ya hiring intent likho.', 'warning');
+                return;
+            }
+
+            try {
+                const client = await ensureClient(state.activePhone);
+                const { Api } = state.gram;
+                els.searchBtn.disabled = true;
+                setOperation('AI se keyword ideas le rahe hain...', 1, 2);
+                state.groups = [];
+                state.candidates = [];
+                render();
+
+                const keywords = await generateKeywords(niche);
+                state.keywords = keywords;
+                renderKeywords();
+
+                const uniqueGroups = new Map();
+                for (let index = 0; index < keywords.length; index += 1) {
+                    const keyword = keywords[index];
+                    setOperation(`Searching groups for "${keyword}"`, index + 1, keywords.length);
+                    const result = await withRetry(
+                        () => client.invoke(new Api.contacts.Search({ q: keyword, limit: 100 })),
+                        {
+                            attempts: 2,
+                            label: `group search ${keyword}`,
+                            onRetry: attempt => {
+                                els.scanNote.textContent = `Retry ${attempt + 1}: "${keyword}" search phir se try ho raha hai...`;
+                            }
+                        }
+                    );
+
+                    for (const chat of result?.chats || []) {
+                        if (!chat?.username || chat?.broadcast) continue;
+                        if (!uniqueGroups.has(chat.username)) {
+                            uniqueGroups.set(chat.username, {
+                                title: chat.title || chat.username,
+                                username: `@${chat.username}`,
+                                members: chat.participantsCount || 0,
+                                hint: chat.megagroup ? 'Megagroup' : 'Public chat',
+                                selected: true
+                            });
+                        }
+                    }
+                    await sleep(650);
+                }
+
+                state.groups = Array.from(uniqueGroups.values());
+                els.scanNote.textContent = state.groups.length
+                    ? `${state.groups.length} groups ready. Jo relevant hain unhe scan ke liye selected chhodo.`
+                    : 'Koi group nahi mila. Dusra niche ya keyword phrase try karo.';
+                showToast(`${state.groups.length} groups found`, state.groups.length ? 'success' : 'warning');
+            } catch (error) {
+                const message = friendlyError(error);
+                els.scanNote.textContent = message;
+                showToast(message, 'error');
+            } finally {
+                els.searchBtn.disabled = false;
+                setOperation('Ready.', 0, 0);
+                render();
+            }
+        }
+
+        async function handleScan() {
+            const selectedGroups = state.groups.filter(group => group.selected);
+            if (!selectedGroups.length) {
+                showToast('Scan se pehle kam se kam ek group select karo.', 'warning');
+                return;
+            }
+
+            try {
+                const client = await ensureClient(state.activePhone);
+                els.scanBtn.disabled = true;
+                state.candidates = [];
+                renderCandidates();
+
+                const collectedMessages = [];
+                const userSources = {};
+
+                for (let index = 0; index < selectedGroups.length; index += 1) {
+                    const group = selectedGroups[index];
+                    setOperation(`Reading ${group.username}`, index + 1, selectedGroups.length);
+                    els.scanNote.textContent = `${group.username} ke recent messages read ho rahe hain...`;
+
+                    try {
+                        const messages = await withRetry(
+                            () => client.getMessages(group.username, { limit: 40 }),
+                            {
+                                attempts: 2,
+                                label: `scan ${group.username}`,
+                                onRetry: attempt => {
+                                    els.scanNote.textContent = `Retry ${attempt + 1}: ${group.username} ko phir se read kar rahe hain...`;
+                                }
+                            }
+                        );
+
+                        for (const msg of messages || []) {
+                            const username = msg?.sender?.username ? `@${msg.sender.username}` : '';
+                            const text = msg?.message?.trim();
+                            if (!username || !text) continue;
+                            collectedMessages.push({ username, text: text.slice(0, 240), group: group.username });
+                            userSources[username] = userSources[username] || new Set();
+                            userSources[username].add(group.username);
+                        }
+                    } catch (error) {
+                        console.warn(`Skipping ${group.username}`, error);
+                    }
+
+                    await sleep(550);
+                }
+
+                if (!collectedMessages.length) {
+                    state.candidates = [];
+                    els.scanNote.textContent = 'Koi usable public messages nahi mile. Dusre groups try karo.';
+                    showToast('No candidate messages found', 'warning');
+                    return;
+                }
+
+                els.scanNote.textContent = `AI ${collectedMessages.length} messages ko score kar raha hai...`;
+                const candidates = await scoreCandidates(collectedMessages, userSources);
+                state.candidates = candidates;
+                els.scanNote.textContent = candidates.length
+                    ? `Scan complete! ${candidates.length} qualified leads mil gaye.`
+                    : 'Scan complete, but strong leads nahi mile. Niche ya groups change karke retry karo.';
+                showToast(`Scan complete · ${candidates.length} leads`, candidates.length ? 'success' : 'warning');
+            } catch (error) {
+                const message = friendlyError(error);
+                els.scanNote.textContent = message;
+                showToast(message, 'error');
+            } finally {
+                els.scanBtn.disabled = false;
+                setOperation('Ready.', 0, 0);
+                render();
+            }
+        }
+
+        async function scoreCandidates(collectedMessages, userSources) {
+            const grouped = {};
+            for (const item of collectedMessages) {
+                grouped[item.username] = grouped[item.username] || [];
+                grouped[item.username].push(item.text);
+            }
+
+            const aiInput = Object.entries(grouped)
+                .map(([username, messages]) => `User: ${username}\nMessages: ${messages.join(' | ')}`)
+                .join('\n\n');
+
+            const prompt = `You are an expert HR recruiter in the iGaming and Affiliate marketing industry, strictly hiring for the INDIAN market. Analyze these Telegram messages:\n\n${aiInput}\n\nCRITICAL INSTRUCTIONS:\n1. ONLY select candidates who appear likely to be from INDIA.\n2. IGNORE Russian, Turkish, Arabic speakers.\n3. Return ONLY a JSON array of objects with keys: "username", "category", "score" (0-100), "reason". No markdown.`;
+
+            const raw = await callGemini(prompt);
+            const jsonText = extractJsonArray(raw);
+            const parsed = JSON.parse(jsonText);
+
+            return parsed
+                .filter(candidate => candidate?.username && Number(candidate?.score) > 50)
+                .map(candidate => ({
+                    username: candidate.username.startsWith('@') ? candidate.username : `@${candidate.username}`,
+                    category: candidate.category || 'Lead',
+                    score: Math.max(0, Math.min(100, Number(candidate.score) || 0)),
+                    reason: candidate.reason || 'No reason supplied by AI.',
+                    sourceGroups: userSources[candidate.username]?.size || userSources[`@${candidate.username}`]?.size || 0
+                }))
+                .sort((a, b) => b.score - a.score);
+        }
+
+        async function openDmForCandidate(index) {
+            const candidate = state.candidates[index];
+            if (!candidate) return;
+            if (!els.baseTemplate.value.trim()) {
+                showToast('Base outreach template pehle likho.', 'warning');
+                return;
+            }
+            if (!state.activePhone) {
+                showToast('DM se pehle active account select karo.', 'warning');
+                return;
+            }
+
+            state.dmLead = candidate;
+            state.ui.dmOpen = true;
+            els.dmSpecialAlert.classList.add('hidden');
+            els.dmSpecialAlert.innerHTML = '';
+            els.dmStatus.className = 'mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300';
+            els.dmStatus.textContent = 'AI personalized draft bana raha hai...';
+            els.dmText.value = '';
+            render();
+            await generateDmDraft(false);
+        }
+
+        async function generateDmDraft(showToastOnSuccess = false) {
+            if (!state.dmLead) return;
+            try {
+                els.regenerateDmBtn.disabled = true;
+                const prompt = `You are an HR sending an outreach message on Telegram. Base template: "${els.baseTemplate.value.trim()}". Personalize it slightly for an INDIAN user categorized as "${state.dmLead.category}" because: "${state.dmLead.reason}". Keep the core message same, add a friendly 1-line hook, and make it feel human in Hindi/English mix if natural. Output ONLY the final message text.`;
+                const text = await callGemini(prompt);
+                els.dmText.value = text.trim();
+                els.dmStatus.className = 'mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100';
+                els.dmStatus.textContent = 'AI draft ready. Aap edit karke send kar sakte ho.';
+                if (showToastOnSuccess) showToast('Fresh AI draft generated', 'success');
+            } catch (error) {
+                els.dmText.value = els.baseTemplate.value.trim();
+                els.dmStatus.className = 'mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100';
+                els.dmStatus.textContent = `AI personalization fail hua, base template fallback use ho gaya. ${friendlyError(error)}`;
+                showToast('AI personalization failed, fallback template used', 'warning');
+            } finally {
+                els.regenerateDmBtn.disabled = false;
+            }
+        }
+
+        async function sendDmToLead() {
+            if (!state.dmLead) return;
+            const message = els.dmText.value.trim();
+            if (!message) {
+                showToast('DM text empty hai. Pehle message ready karo.', 'warning');
+                return;
+            }
+
+            try {
+                const client = await ensureClient(state.activePhone);
+                els.sendDmBtn.disabled = true;
+                els.dmStatus.className = 'mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300';
+                els.dmStatus.textContent = `Sending ${state.dmLead.username} from ${state.activePhone}...`;
+
+                await withRetry(
+                    () => client.sendMessage(state.dmLead.username, { message }),
+                    {
+                        attempts: 2,
+                        label: `send DM ${state.dmLead.username}`
+                    }
+                );
+
+                els.dmStatus.className = 'mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100';
+                els.dmStatus.textContent = 'Message sent successfully!';
+                showToast(`DM sent to ${state.dmLead.username}`, 'success');
+                setTimeout(() => closeDmModal(), 1200);
+            } catch (error) {
+                const rawMessage = String(error?.message || error);
+                const friendly = friendlyError(error);
+                if (rawMessage.includes('PEER_FLOOD')) {
+                    els.dmSpecialAlert.classList.remove('hidden');
+                    els.dmSpecialAlert.innerHTML = `
+                        <div class="font-bold">PEER_FLOOD detected</div>
+                        <div class="mt-1">Yeh account abhi zyada DMs nahi bhej sakta. Account switch/add karo aur phir retry karo.</div>
+                    `;
+                }
+                els.dmStatus.className = 'mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100';
+                els.dmStatus.textContent = friendly;
+                showToast(friendly, 'error');
+            } finally {
+                els.sendDmBtn.disabled = false;
+            }
+        }
+
+        async function logoutAccount(phone) {
+            if (!phone) return;
+            try {
+                const client = state.clients.get(phone);
+                if (client) await client.disconnect();
+            } catch {}
+
+            delete state.accounts[phone];
+            state.clients.delete(phone);
+
+            if (state.activePhone === phone) {
+                state.activePhone = Object.keys(state.accounts)[0] || '';
+                persistActivePhone();
+            }
+
+            saveAccounts();
+            render();
+            showToast(`${phone} removed from localStorage`, 'success');
+
+            if (!Object.keys(state.accounts).length) {
+                openLoginModal();
+            }
+        }
+
+        function openLoginModal() {
+            state.ui.loginOpen = true;
+            if (!state.authFlow) {
+                state.authFlow = null;
+                els.loginOtpInput.value = '';
+                els.loginPasswordInput.value = '';
+            }
+            render();
+        }
+
+        function closeLoginModal() {
+            state.ui.loginOpen = false;
+            render();
+        }
+
+        function closeDmModal() {
+            state.ui.dmOpen = false;
+            state.dmLead = null;
+            render();
+        }
+
+        async function generateKeywords(niche) {
+            const prompt = `Act as an HR recruiter looking to hire ${niche} in the iGaming industry specifically for the INDIAN market on Telegram. Find public Telegram groups where Indian users actively discuss work, traffic, or affiliate opportunities. Generate exactly 15 Telegram search queries. Use Indian context words along with the niche (for example: "india", "hindi", "promoters adda", "kamao", "desi"). Each query must be 2-3 words maximum. Output ONLY a comma-separated list, nothing else.`;
+            try {
+                const raw = await callGemini(prompt);
+                return raw
+                    .split(',')
+                    .map(item => item.trim().replace(/^["'\s]+|["'\s]+$/g, ''))
+                    .filter(Boolean)
+                    .slice(0, 15);
+            } catch {
+                return [
+                    `${niche} india`,
+                    'earning group hindi',
+                    'promoter adda',
+                    'part time india',
+                    'affiliate hindi'
+                ];
+            }
+        }
+
+        async function callGemini(prompt) {
+            const geminiKey = localStorage.getItem(STORAGE_KEYS.geminiKey)?.trim();
+            if (!geminiKey) {
+                throw new Error('Gemini key missing. Step 1 me browser key save karo.');
+            }
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiKey)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok || data?.error) {
+                throw new Error(data?.error?.message || 'Gemini request failed');
+            }
+
+            return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+        }
+
+        async function withRetry(action, { attempts = 2, label = 'operation', onRetry } = {}) {
+            let lastError;
+            for (let attempt = 0; attempt <= attempts; attempt += 1) {
+                try {
+                    return await action();
+                } catch (error) {
+                    lastError = error;
+                    if (attempt >= attempts) break;
+                    if (onRetry) onRetry(attempt, error);
+                    showToast(`${label} failed. Retry ${attempt + 1}/${attempts}...`, 'warning');
+                    await sleep(900 * (attempt + 1));
+                }
+            }
+            throw lastError;
+        }
+
+        function handleClientFailure(phone, error) {
+            const message = friendlyError(error);
+            showToast(message, 'error');
+            if (/AUTH_KEY_UNREGISTERED|SESSION_REVOKED|401|Not Found/i.test(String(error?.message || error))) {
+                delete state.accounts[phone];
+                saveAccounts();
+                state.clients.delete(phone);
+                state.activePhone = Object.keys(state.accounts)[0] || '';
+                persistActivePhone();
+            }
+            render();
+        }
+
+        function extractJsonArray(text) {
+            const match = text.match(/\[[\s\S]*\]/);
+            if (!match) throw new Error('AI JSON parse fail');
+            return match[0];
+        }
+
+        function normalizePhone(value) {
+            const phone = value.trim();
+            if (!phone) return '';
+            return phone.startsWith('+') ? phone : `+${phone.replace(/[^\d]/g, '')}`;
+        }
+
+        function initials(value) {
+            return String(value || 'TG')
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map(part => part[0]?.toUpperCase() || '')
+                .join('') || 'TG';
+        }
+
+        function formatMembers(count) {
+            const value = Number(count || 0);
+            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M members`;
+            if (value >= 1000) return `${(value / 1000).toFixed(1)}K members`;
+            return `${value} members`;
+        }
+
+        function friendlyError(error) {
+            const message = String(error?.message || error || 'Unknown error');
+            if (/PEER_FLOOD/i.test(message)) return 'PEER_FLOOD: current account restricted hai. Dusra account switch/add karo.';
+            if (/SESSION_PASSWORD_NEEDED/i.test(message)) return '2-step password required. Password step complete karo.';
+            if (/PHONE_CODE_INVALID/i.test(message)) return 'OTP galat lag raha hai. Naya code try karo.';
+            if (/AUTH_KEY_UNREGISTERED|SESSION_REVOKED/i.test(message)) return 'Saved session invalid ho gaya. Is account ko dobara login karna padega.';
+            if (/Failed to fetch|NetworkError|fetch/i.test(message)) return 'Network/CDN issue mila. Browser ya internet retry karo.';
+            return message;
+        }
+
+        function showToast(message, tone = 'neutral') {
+            const toast = document.createElement('div');
+            const palette = {
+                success: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100',
+                error: 'border-red-400/20 bg-red-500/10 text-red-100',
+                warning: 'border-amber-400/20 bg-amber-500/10 text-amber-100',
+                neutral: 'border-white/10 bg-slate-900/80 text-slate-100'
+            };
+            toast.className = `toast rounded-3xl border px-4 py-4 text-sm shadow-2xl ${palette[tone] || palette.neutral}`;
+            toast.textContent = message;
+            els.toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 220);
+            }, 3200);
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+    </script>
+</body>
 </html>
