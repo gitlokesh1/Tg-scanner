@@ -1093,6 +1093,8 @@
             els.searchBtn.disabled = !canUseTelegram;
             els.scanBtn.disabled = !canUseTelegram || !state.groups.some(group => group.selected);
             els.sendPhoneBtn.disabled = false;
+            els.verifyOtpBtn.disabled = false;
+            els.verifyPasswordBtn.disabled = false;
             els.regenerateDmBtn.disabled = !state.dmLead;
             els.sendDmBtn.disabled = !state.dmLead;
         }
@@ -1660,7 +1662,7 @@
             state.ui.loginOpen = true;
             activeTab = 'login';
             if (!state.authFlow) {
-                state.authFlow = null;
+                els.loginPhoneInput.value = '';
                 els.loginOtpInput.value = '';
                 els.loginPasswordInput.value = '';
             }

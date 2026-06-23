@@ -14,6 +14,9 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const apiId = Number(process.env.TELEGRAM_API_ID) || 0;
 const apiHash = process.env.TELEGRAM_API_HASH || '';
 
+if (!GEMINI_API_KEY) console.warn('⚠️  GEMINI_API_KEY not set — AI search/scan features will not work');
+if (!apiId || !apiHash) console.warn('⚠️  TELEGRAM_API_ID / TELEGRAM_API_HASH not set — Telegram client will fail');
+
 // Multi-Account Storage
 const SESSIONS_FILE = 'sessions.json';
 let sessions = fs.existsSync(SESSIONS_FILE) ? JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')) : {};
@@ -82,8 +85,14 @@ app.post('/api/auth/phone', async (req, res) => {
         pendingAuths[phone].error = err.message; pendingAuths[phone].state = 'error';  
     });  
 
-    await new Promise(r => setTimeout(r, 2000));  
-    res.json({ success: true, state: pendingAuths[phone].state, error: pendingAuths[phone].error });
+    await new Promise(r => setTimeout(r, 2000));
+    const currentState = pendingAuths[phone];
+    const responseState = currentState.resolveCode
+        ? 'waiting_code'
+        : currentState.resolvePassword
+            ? 'waiting_password'
+            : currentState.state;
+    res.json({ success: true, state: responseState, error: currentState.error });
 });
 
 app.post('/api/auth/code', async (req, res) => {
@@ -93,7 +102,11 @@ app.post('/api/auth/code', async (req, res) => {
         pendingAuths[phone].resolveCode = null;
         pendingAuths[phone].state = 'processing';
         await new Promise(r => setTimeout(r, 2000));
-        res.json({ success: true, state: pendingAuths[phone].state, error: pendingAuths[phone].error });
+        const currentState = pendingAuths[phone];
+        const responseState = currentState.resolvePassword
+            ? 'waiting_password'
+            : currentState.state;
+        res.json({ success: true, state: responseState, error: currentState.error });
     } else { res.status(400).json({ error: "Invalid auth state" }); }
 });
 
