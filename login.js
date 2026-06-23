@@ -3,8 +3,13 @@ const { StringSession } = require('telegram/sessions');
 const input = require('input'); 
 const fs = require('fs');
 
-const apiId = 39942557; 
-const apiHash = '77a67551c7f83be89c33da3a95eefea0'; 
+const apiId = Number(process.env.TELEGRAM_API_ID) || 0;
+const apiHash = process.env.TELEGRAM_API_HASH || '';
+
+if (!apiId || !apiHash) {
+    console.error('❌ TELEGRAM_API_ID and TELEGRAM_API_HASH env vars required. Copy .env.example to .env and fill them.');
+    process.exit(1);
+}
 const stringSession = new StringSession(''); 
 
 (async () => {
