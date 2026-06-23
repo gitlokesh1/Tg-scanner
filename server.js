@@ -125,7 +125,7 @@ app.post('/api/auto-search', async (req, res) => {
     console.log(`\n🧠 AI Brain Working: Generating keywords for "${targetNiche}"...`);
 
     try {
-        const prompt = `Act as an HR recruiter looking to hire ${targetNiche} on Telegram. You need to join open discussion groups where job seekers, students, and related people hang out. Generate exactly 15 short Telegram search queries (strictly 2 to 3 words maximum per query, e.g. "affiliate chat", "part time adda"). Output ONLY a comma-separated list, nothing else.`;
+        const prompt = `Act as an HR recruiter looking to hire ${targetNiche} in the iGaming industry on Telegram. Find public Telegram groups where people related to ${targetNiche} actively discuss work, partnerships, promotion, traffic, or affiliate opportunities. Generate exactly 15 Telegram search queries. Each query must be 2-3 words maximum. Output ONLY a comma-separated list, nothing else.`;
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
