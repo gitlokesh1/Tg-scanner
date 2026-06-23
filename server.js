@@ -4,12 +4,11 @@ const { StringSession } = require('telegram/sessions');
 const fs = require('fs');
 
 const app = express();
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 
 app.use(express.json());
 app.use(express.static('public')); 
 
-// 👇 YAHAN APNI GEMINI KEY DAALEIN 👇
 const GEMINI_API_KEY = 'AQ.Ab8RN6LWTjRDIPDlGh0i00-hu29pdGRKR_4K5kBPKvox9E5ZOg';
 
 const apiId = 39942557;
@@ -134,7 +133,7 @@ app.post('/api/auto-search', async (req, res) => {
     console.log(`\n🧠 AI Brain Working: Generating Indian keywords for "${targetNiche}"...`);  
 
     try {  
-        const prompt = `Act as an HR recruiter looking to hire ${targetNiche} in the iGaming industry specifically for the INDIAN market on Telegram. Find public Telegram groups where Indian users actively discuss work, traffic, or affiliate opportunities. Generate exactly 15 Telegram search queries. Use Indian context words along with the niche (e.g., "india", "hindi", "promoters adda", "kamao", "desi"). Each query must be 2-3 words maximum. Output ONLY a comma-separated list, nothing else.`;  
+        const prompt = `Act as an HR recruiter looking to hire ${targetNiche} in the iGaming industry specifically for the INDIAN market on Telegram. Generate exactly 5 short search keywords (comma-separated, no numbering, no quotes) that would find relevant public Telegram groups. Focus on Hindi/Hinglish terms Indians would use.`;
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {  
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })  
         });  
@@ -199,7 +198,7 @@ app.post('/api/scan-groups', async (req, res) => {
 
         let aiInputData = Object.keys(userChats).map(username => `User: ${username}\nMessages: ${userChats[username].join(' | ')}`).join('\n\n');
 
-        const prompt = `You are an expert HR recruiter in the iGaming and Affiliate marketing industry, strictly hiring for the INDIAN market. Analyze these Telegram messages: \n\n${aiInputData}\n\nCRITICAL INSTRUCTIONS:\n1. ONLY select candidates who appear to be from INDIA.\n2. IGNORE Russian, Turkish, Arabic speakers.\n3. Return ONLY a JSON array of objects with keys: "username", "category", "score" (0-100), "reason". Do not use markdown blocks.`;
+        const prompt = `You are an expert HR recruiter in the iGaming and Affiliate marketing industry, strictly hiring for the INDIAN market. Analyze these Telegram messages and identify potential Indian candidates. Return ONLY a valid JSON array (no markdown, no explanation) with this format: [{"username":"@user","score":85,"category":"Affiliate Agent","reason":"Short reason"}]. Score 0-100. Only include users with score > 50.\n\n${aiInputData}`;
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -210,8 +209,8 @@ app.post('/api/scan-groups', async (req, res) => {
         
         try {
             let rawText = aiData.candidates[0].content.parts[0].text;
-            rawText = rawText.replace(/```json/g, '').replace(/
-```/g, '').trim(); 
+            // FIX: safely strip markdown code fences without broken regex
+            rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
             candidates = JSON.parse(rawText).filter(c => c.score > 50).sort((a,b) => b.score - a.score);
         } catch(e) { console.error("AI Parse Error", e); }
 
