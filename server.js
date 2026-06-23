@@ -9,10 +9,10 @@ const PORT = process.env.PORT || 8080;
 app.use(express.json());
 app.use(express.static('public')); 
 
-const GEMINI_API_KEY = 'AQ.Ab8RN6LWTjRDIPDlGh0i00-hu29pdGRKR_4K5kBPKvox9E5ZOg';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
-const apiId = 39942557;
-const apiHash = '77a67551c7f83be89c33da3a95eefea0';
+const apiId = Number(process.env.TELEGRAM_API_ID) || 0;
+const apiHash = process.env.TELEGRAM_API_HASH || '';
 
 // Multi-Account Storage
 const SESSIONS_FILE = 'sessions.json';

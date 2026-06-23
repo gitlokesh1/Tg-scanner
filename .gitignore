@@ -1,3 +1,4 @@
 session.txt
 sessions.json
 node_modules/
+.env
