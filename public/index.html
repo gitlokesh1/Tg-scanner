@@ -107,135 +107,111 @@
             background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.24), transparent);
             height: 1px;
         }
+
+        button {
+            min-height: 3rem;
+        }
+
+        .tab-panel-mobile {
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .tab-panel-mobile.is-hidden-mobile {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @media (max-width: 767px) {
+            .text-xs {
+                font-size: 0.875rem;
+                line-height: 1.25rem;
+            }
+        }
     </style>
 </head>
-<body>
-    <div class="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
+<body class="overflow-x-hidden">
+    <div class="mx-auto max-w-7xl px-4 pb-24 sm:px-6 md:pb-10 lg:px-8">
         <div id="fallback-banner" class="hidden mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"></div>
 
-        <nav class="glass sticky top-4 z-40 mt-4 rounded-3xl px-4 py-4 sm:px-6">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div class="flex items-start gap-4">
+        <nav class="glass sticky top-3 z-40 mt-3 rounded-3xl px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
                     <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300">
                         <i class="fa-brands fa-telegram text-2xl"></i>
                     </div>
                     <div>
-                        <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Browser-only workflow</p>
-                        <h1 class="text-2xl font-black text-white">TG Scanner · GramJS Dashboard</h1>
-                        <p class="mt-1 text-sm text-slate-400">No Express required. Login, search, scan, and DM directly from the browser.</p>
+                        <p class="text-sm font-semibold text-white">TG Scanner</p>
+                        <p class="text-sm text-slate-400">Browser-only GramJS dashboard</p>
                     </div>
                 </div>
 
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <label class="glass flex min-w-[240px] items-center gap-3 rounded-2xl px-4 py-3">
-                        <i class="fa-solid fa-user-group text-slate-400"></i>
-                        <select id="account-switcher" class="w-full bg-transparent text-sm font-semibold text-white outline-none">
-                            <option value="">No account selected</option>
-                        </select>
-                    </label>
-                    <button id="open-login-btn" class="rounded-2xl bg-sky-500 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-sky-400">
-                        <i class="fa-solid fa-plus mr-2"></i>Add account
+                <div class="relative">
+                    <button id="kebab-menu-btn" class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-xl text-slate-200 transition hover:bg-white/10" aria-label="Open menu" aria-expanded="false">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
                     </button>
+                    <div id="kebab-menu" class="hidden absolute right-0 mt-2 w-80 rounded-3xl border border-white/10 bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
+                        <div class="text-sm font-semibold text-white">Active account</div>
+                        <div id="menu-active-account" class="mt-1 text-sm text-slate-300">No account selected</div>
+
+                        <label class="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                            <i class="fa-solid fa-user-group text-slate-400"></i>
+                            <select id="account-switcher" class="w-full bg-transparent text-sm font-semibold text-white outline-none">
+                                <option value="">No account selected</option>
+                            </select>
+                        </label>
+
+                        <button id="open-login-btn" class="mt-3 w-full rounded-2xl bg-sky-500 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-sky-400">
+                            <i class="fa-solid fa-plus mr-2"></i>Add account
+                        </button>
+
+                        <div class="soft-divider my-4"></div>
+
+                        <div class="grid grid-cols-3 gap-2 text-center text-sm">
+                            <div class="rounded-2xl border border-white/10 bg-white/5 px-2 py-3">
+                                <div id="stat-accounts" class="text-lg font-black text-white">0</div>
+                                <div class="text-sm text-slate-400">Accounts</div>
+                            </div>
+                            <div class="rounded-2xl border border-white/10 bg-white/5 px-2 py-3">
+                                <div id="stat-groups" class="text-lg font-black text-white">0</div>
+                                <div class="text-sm text-slate-400">Groups</div>
+                            </div>
+                            <div class="rounded-2xl border border-white/10 bg-white/5 px-2 py-3">
+                                <div id="stat-leads" class="text-lg font-black text-white">0</div>
+                                <div class="text-sm text-slate-400">Leads</div>
+                            </div>
+                        </div>
+
+                        <div class="soft-divider my-4"></div>
+
+                        <div id="gram-status-badge" class="rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-100">Loading GramJS…</div>
+                        <button id="menu-gemini-btn" class="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10">
+                            <i class="fa-solid fa-key mr-2"></i>Gemini key settings
+                        </button>
+                    </div>
                 </div>
             </div>
         </nav>
 
-        <header class="mt-6 grid gap-4 lg:grid-cols-[1.3fr,0.7fr]">
-            <section class="glass rounded-[28px] p-6 sm:p-8">
-                <div class="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <span class="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-sky-200">
-                            <i class="fa-solid fa-bolt"></i> Pure client-side
-                        </span>
-                        <h2 class="mt-4 text-3xl font-black text-white sm:text-4xl">Step-based Telegram lead finder</h2>
-                        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-                            Step 1 login karo, Step 2 groups dhoondo, Step 3 AI scan chalao, Step 4 personalized outreach bhejo.
-                            Agar browser MTProto/CDN block ho jaye, fallback note automatically dikh jayega.
-                        </p>
-                    </div>
-                    <div class="grid grid-cols-3 gap-3 text-center text-sm">
-                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                            <div id="stat-accounts" class="text-2xl font-black text-white">0</div>
-                            <div class="mt-1 text-slate-400">Accounts</div>
-                        </div>
-                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                            <div id="stat-groups" class="text-2xl font-black text-white">0</div>
-                            <div class="mt-1 text-slate-400">Groups</div>
-                        </div>
-                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                            <div id="stat-leads" class="text-2xl font-black text-white">0</div>
-                            <div class="mt-1 text-slate-400">Leads</div>
-                        </div>
-                    </div>
+        <section class="mt-4 glass rounded-3xl p-4 sm:p-5">
+            <p id="active-account-line" class="text-sm text-slate-300">No active account selected.</p>
+            <div class="mt-3">
+                <div class="mb-2 flex items-center justify-between text-sm text-slate-500">
+                    <span>Operation progress</span>
+                    <span id="operation-progress-text">Idle</span>
                 </div>
-            </section>
-
-            <section class="glass rounded-[28px] p-6">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-bold text-white">Live status</h2>
-                    <span id="gram-status-badge" class="rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100">Loading GramJS…</span>
-                </div>
-                <div class="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-                    <p id="active-account-line" class="text-sm text-slate-300">No active account selected.</p>
-                    <div class="mt-4">
-                        <div class="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
-                            <span>Operation progress</span>
-                            <span id="operation-progress-text">Idle</span>
-                        </div>
-                        <div class="h-2 overflow-hidden rounded-full bg-slate-800">
-                            <div id="operation-progress-bar" class="progress-bar h-full w-0 rounded-full bg-gradient-to-r from-sky-400 to-violet-500"></div>
-                        </div>
-                    </div>
-                    <div id="operation-status" class="mt-4 text-sm text-slate-400">Ready to start.</div>
-                </div>
-            </section>
-        </header>
-
-        <section class="mt-6 grid gap-3 md:grid-cols-4">
-            <div id="step-1" class="step-pill glass rounded-2xl border px-4 py-4">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">1</div>
-                    <div>
-                        <div class="font-bold text-white">Login</div>
-                        <div class="text-xs text-slate-400">Phone → OTP → 2FA</div>
-                    </div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-800">
+                    <div id="operation-progress-bar" class="progress-bar h-full w-0 rounded-full bg-gradient-to-r from-sky-400 to-violet-500"></div>
                 </div>
             </div>
-            <div id="step-2" class="step-pill glass rounded-2xl border px-4 py-4">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">2</div>
-                    <div>
-                        <div class="font-bold text-white">Find groups</div>
-                        <div class="text-xs text-slate-400">AI keyword search</div>
-                    </div>
-                </div>
-            </div>
-            <div id="step-3" class="step-pill glass rounded-2xl border px-4 py-4">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">3</div>
-                    <div>
-                        <div class="font-bold text-white">Scan leads</div>
-                        <div class="text-xs text-slate-400">Messages → AI scoring</div>
-                    </div>
-                </div>
-            </div>
-            <div id="step-4" class="step-pill glass rounded-2xl border px-4 py-4">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">4</div>
-                    <div>
-                        <div class="font-bold text-white">Outreach</div>
-                        <div class="text-xs text-slate-400">Personalized DMs</div>
-                    </div>
-                </div>
-            </div>
+            <div id="operation-status" class="mt-3 text-sm text-slate-400">Ready to start.</div>
         </section>
 
-        <main class="mt-6 grid gap-6 xl:grid-cols-[0.95fr,1.05fr]">
-            <section class="space-y-6">
-                <article class="glass rounded-[28px] p-6">
+        <main class="mt-4 space-y-4 md:space-y-6">
+            <section data-tab-panel="login" class="tab-panel-mobile hidden md:block">
+                <article class="glass rounded-[28px] p-4 sm:p-6">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Step 1</p>
+                            <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Login</p>
                             <h3 class="mt-1 text-xl font-black text-white">Logged-in accounts</h3>
                             <p class="mt-2 text-sm text-slate-400">Multi-account sessions are saved in localStorage by phone number.</p>
                         </div>
@@ -252,7 +228,7 @@
                                 <h4 class="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">Gemini browser key</h4>
                                 <p class="mt-2 text-sm text-slate-400">Security reason ki wajah se Gemini key HTML me hardcode nahi hai. Ek baar paste karo, browser localStorage me save ho jayegi.</p>
                             </div>
-                            <span id="gemini-key-state" class="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100">Key missing</span>
+                            <span id="gemini-key-state" class="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-sm font-semibold text-amber-100">Key missing</span>
                         </div>
                         <div class="mt-4 flex flex-col gap-3 sm:flex-row">
                             <input id="gemini-key-input" type="password" class="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-sm text-white outline-none transition focus:border-sky-400/40" placeholder="Paste Gemini API key">
@@ -260,25 +236,13 @@
                         </div>
                     </div>
                 </article>
-
-                <article class="glass rounded-[28px] p-6">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Step 4</p>
-                            <h3 class="mt-1 text-xl font-black text-white">Base outreach template</h3>
-                            <p class="mt-2 text-sm text-slate-400">Isi message se AI har lead ke liye custom opener banayega.</p>
-                        </div>
-                        <span class="rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-100">AI personalization</span>
-                    </div>
-                    <textarea id="base-template" rows="7" class="mt-5 w-full rounded-3xl border border-white/10 bg-slate-950/50 px-4 py-4 text-sm text-white outline-none transition focus:border-violet-400/40" placeholder="Hi! Hum iGaming / affiliate growth side par strong traffic partners dekh rahe hain. Agar aap collaboration ke liye open ho to batayein."></textarea>
-                </article>
             </section>
 
-            <section class="space-y-6">
-                <article class="glass rounded-[28px] p-6">
+            <section data-tab-panel="search" class="tab-panel-mobile hidden md:block space-y-4 md:space-y-6">
+                <article class="glass rounded-[28px] p-4 sm:p-6">
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Step 2</p>
+                            <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Search</p>
                             <h3 class="mt-1 text-xl font-black text-white">Find Telegram groups</h3>
                             <p class="mt-2 text-sm text-slate-400">Gemini niche ko smart search keywords me convert karega, phir active account se public groups dhoondega.</p>
                         </div>
@@ -291,15 +255,15 @@
                         <button id="sample-niche-btn" class="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-slate-200 transition hover:bg-white/10">Use sample niche</button>
                     </div>
                     <div class="mt-5">
-                        <div class="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">Keywords used</div>
+                        <div class="mb-2 text-sm uppercase tracking-[0.2em] text-slate-500">Keywords used</div>
                         <div id="keyword-chips" class="flex flex-wrap gap-2"></div>
                     </div>
                 </article>
 
-                <article class="glass rounded-[28px] p-6">
+                <article class="glass rounded-[28px] p-4 sm:p-6">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Groups found</p>
+                            <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Groups found</p>
                             <h3 class="mt-1 text-xl font-black text-white">Choose groups to scan</h3>
                             <p id="groups-summary" class="mt-2 text-sm text-slate-400">Search results yahan cards ke form me aayenge.</p>
                         </div>
@@ -310,11 +274,52 @@
                     </div>
                     <div id="groups-grid" class="grid-scroll mt-5 grid max-h-[460px] gap-4 overflow-y-auto md:grid-cols-2"></div>
                 </article>
+            </section>
 
-                <article class="glass rounded-[28px] p-6">
+            <section data-tab-panel="scan" class="tab-panel-mobile hidden md:block space-y-4 md:space-y-6">
+                <section class="grid gap-3 md:grid-cols-4">
+                    <div id="step-1" class="step-pill glass rounded-2xl border px-4 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">1</div>
+                            <div>
+                                <div class="font-bold text-white">Login</div>
+                                <div class="text-sm text-slate-400">Phone → OTP → 2FA</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="step-2" class="step-pill glass rounded-2xl border px-4 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">2</div>
+                            <div>
+                                <div class="font-bold text-white">Find groups</div>
+                                <div class="text-sm text-slate-400">AI keyword search</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="step-3" class="step-pill glass rounded-2xl border px-4 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">3</div>
+                            <div>
+                                <div class="font-bold text-white">Scan leads</div>
+                                <div class="text-sm text-slate-400">Messages → AI scoring</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="step-4" class="step-pill glass rounded-2xl border px-4 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">4</div>
+                            <div>
+                                <div class="font-bold text-white">Outreach</div>
+                                <div class="text-sm text-slate-400">Personalized DMs</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <article class="glass rounded-[28px] p-4 sm:p-6">
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
-                            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Step 3</p>
+                            <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Scan</p>
                             <h3 class="mt-1 text-xl font-black text-white">AI lead scan</h3>
                             <p class="mt-2 text-sm text-slate-400">Selected groups ke recent messages read karke high-intent leads nikale jayenge.</p>
                         </div>
@@ -325,29 +330,64 @@
                     <div id="scan-note" class="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-slate-300">Ready for scan.</div>
                 </article>
             </section>
-        </main>
 
-        <section class="mt-6 glass rounded-[30px] p-6">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Candidates</p>
-                    <h3 class="mt-1 text-2xl font-black text-white">Scored outreach candidates</h3>
-                    <p class="mt-2 text-sm text-slate-400">Score bar, category badge, reason snippet, aur per-user AI DM action.</p>
-                </div>
-                <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
-                    Active account:
-                    <span id="candidate-active-account" class="font-bold text-white">None</span>
-                </div>
-            </div>
-            <div id="candidates-grid" class="candidate-scroll mt-6 grid max-h-[760px] gap-5 overflow-y-auto lg:grid-cols-2 xl:grid-cols-3"></div>
-        </section>
+            <section data-tab-panel="outreach" class="tab-panel-mobile hidden md:block space-y-4 md:space-y-6">
+                <article class="glass rounded-[28px] p-4 sm:p-6">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Outreach</p>
+                            <h3 class="mt-1 text-xl font-black text-white">Base outreach template</h3>
+                            <p class="mt-2 text-sm text-slate-400">Isi message se AI har lead ke liye custom opener banayega.</p>
+                        </div>
+                        <span class="rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-sm font-semibold text-violet-100">AI personalization</span>
+                    </div>
+                    <textarea id="base-template" rows="7" class="mt-5 w-full rounded-3xl border border-white/10 bg-slate-950/50 px-4 py-4 text-sm text-white outline-none transition focus:border-violet-400/40" placeholder="Hi! Hum iGaming / affiliate growth side par strong traffic partners dekh rahe hain. Agar aap collaboration ke liye open ho to batayein."></textarea>
+                </article>
+
+                <section class="glass rounded-[30px] p-4 sm:p-6">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Candidates</p>
+                            <h3 class="mt-1 text-2xl font-black text-white">Scored outreach candidates</h3>
+                            <p class="mt-2 text-sm text-slate-400">Score bar, category badge, reason snippet, aur per-user AI DM action.</p>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+                            Active account:
+                            <span id="candidate-active-account" class="font-bold text-white">None</span>
+                        </div>
+                    </div>
+                    <div id="candidates-grid" class="candidate-scroll mt-6 grid max-h-[760px] gap-5 overflow-y-auto lg:grid-cols-2 xl:grid-cols-3"></div>
+                </section>
+            </section>
+        </main>
     </div>
 
-    <div id="login-modal" class="modal-backdrop hidden fixed inset-0 z-50 items-center justify-center px-4 py-6">
-        <div class="modal-scroll glass max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-[32px] p-6 sm:p-8">
+    <div class="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/95 px-2 py-2 md:hidden">
+        <div class="grid grid-cols-4 gap-2">
+            <button data-tab="login" class="tab-btn rounded-2xl border border-white/10 bg-white/5 px-2 py-2 text-sm font-semibold text-slate-200">
+                <span class="block text-base">🔑</span>
+                <span>Login</span>
+            </button>
+            <button data-tab="search" class="tab-btn rounded-2xl border border-white/10 bg-white/5 px-2 py-2 text-sm font-semibold text-slate-200">
+                <span class="block text-base">🔍</span>
+                <span>Search</span>
+            </button>
+            <button data-tab="scan" class="tab-btn rounded-2xl border border-white/10 bg-white/5 px-2 py-2 text-sm font-semibold text-slate-200">
+                <span class="block text-base">📡</span>
+                <span>Scan</span>
+            </button>
+            <button data-tab="outreach" class="tab-btn rounded-2xl border border-white/10 bg-white/5 px-2 py-2 text-sm font-semibold text-slate-200">
+                <span class="block text-base">📨</span>
+                <span>Outreach</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="login-modal" class="modal-backdrop hidden fixed inset-0 z-50 items-center justify-center">
+        <div class="modal-scroll glass fixed inset-0 h-full w-full overflow-y-auto rounded-none p-4 sm:relative sm:inset-auto sm:h-auto sm:max-h-[92vh] sm:max-w-xl sm:rounded-[32px] sm:p-8">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Telegram login</p>
+                    <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Telegram login</p>
                     <h3 class="mt-1 text-2xl font-black text-white">Add or recover account</h3>
                     <p class="mt-2 text-sm text-slate-400">Clean browser-only auth flow: phone → OTP → 2FA → save session in localStorage.</p>
                 </div>
@@ -363,17 +403,17 @@
             </div>
 
             <div class="mt-6 rounded-3xl border border-white/10 bg-slate-950/45 p-5">
-                <label class="block text-xs uppercase tracking-[0.25em] text-slate-500">Phone number</label>
-                <input id="login-phone-input" type="text" class="mt-3 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-white outline-none transition focus:border-sky-400/40" placeholder="+919876543210">
+                <label class="block text-sm uppercase tracking-[0.2em] text-slate-500">Phone number</label>
+                <input id="login-phone-input" type="text" class="mt-3 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-sm text-white outline-none transition focus:border-sky-400/40" placeholder="+919876543210">
 
                 <div id="otp-box" class="hidden">
-                    <label class="mt-5 block text-xs uppercase tracking-[0.25em] text-slate-500">Telegram OTP</label>
-                    <input id="login-otp-input" type="text" class="mt-3 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-white outline-none transition focus:border-sky-400/40" placeholder="12345">
+                    <label class="mt-5 block text-sm uppercase tracking-[0.2em] text-slate-500">Telegram OTP</label>
+                    <input id="login-otp-input" type="text" class="mt-3 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-sm text-white outline-none transition focus:border-sky-400/40" placeholder="12345">
                 </div>
 
                 <div id="password-box" class="hidden">
-                    <label class="mt-5 block text-xs uppercase tracking-[0.25em] text-slate-500">2-step password</label>
-                    <input id="login-password-input" type="password" class="mt-3 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-white outline-none transition focus:border-violet-400/40" placeholder="Password">
+                    <label class="mt-5 block text-sm uppercase tracking-[0.2em] text-slate-500">2-step password</label>
+                    <input id="login-password-input" type="password" class="mt-3 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4 text-sm text-white outline-none transition focus:border-violet-400/40" placeholder="Password">
                 </div>
 
                 <div id="login-status" class="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">Ready.</div>
@@ -388,18 +428,18 @@
             <div class="mt-6">
                 <div class="mb-3 flex items-center justify-between">
                     <h4 class="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">Saved accounts</h4>
-                    <span class="text-xs text-slate-500">Phone-keyed localStorage sessions</span>
+                    <span class="text-sm text-slate-500">Phone-keyed localStorage sessions</span>
                 </div>
                 <div id="login-saved-accounts" class="space-y-3"></div>
             </div>
         </div>
     </div>
 
-    <div id="dm-modal" class="modal-backdrop hidden fixed inset-0 z-50 items-center justify-center px-4 py-6">
-        <div class="modal-scroll glass max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[32px] p-6 sm:p-8">
+    <div id="dm-modal" class="modal-backdrop hidden fixed inset-0 z-50 items-center justify-center">
+        <div class="modal-scroll glass fixed inset-0 h-full w-full overflow-y-auto rounded-none p-4 sm:relative sm:inset-auto sm:h-auto sm:max-h-[92vh] sm:max-w-2xl sm:rounded-[32px] sm:p-8">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Outreach composer</p>
+                    <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Outreach composer</p>
                     <h3 class="mt-1 text-2xl font-black text-white">Send personalized Telegram DM</h3>
                     <p id="dm-target-line" class="mt-2 text-sm text-slate-400">Lead details will appear here.</p>
                 </div>
@@ -427,8 +467,7 @@
         </div>
     </div>
 
-    <div id="toast-container" class="fixed bottom-4 right-4 z-[70] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-3"></div>
-
+    <div id="toast-container" class="fixed bottom-20 right-4 z-[70] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-3 md:bottom-4"></div>
     <script type="module">
         const API_ID = 39942557;
         const API_HASH = '77a67551c7f83be89c33da3a95eefea0';
@@ -488,10 +527,15 @@
             'hindi promoter groups'
         ];
 
+        let activeTab = 'login';
+        let gramLoadPromise = null;
+
         const state = {
             gram: null,
             gramLabel: '',
             gramError: '',
+            gramLoading: true,
+            pendingLoginPhone: '',
             accounts: loadAccounts(),
             activePhone: localStorage.getItem(STORAGE_KEYS.activePhone) || '',
             clients: new Map(),
@@ -503,12 +547,17 @@
             dmLead: null,
             ui: {
                 loginOpen: false,
-                dmOpen: false
+                dmOpen: false,
+                menuOpen: false
             }
         };
 
         const els = {
             fallbackBanner: document.getElementById('fallback-banner'),
+            kebabMenuBtn: document.getElementById('kebab-menu-btn'),
+            kebabMenu: document.getElementById('kebab-menu'),
+            menuActiveAccount: document.getElementById('menu-active-account'),
+            menuGeminiBtn: document.getElementById('menu-gemini-btn'),
             accountSwitcher: document.getElementById('account-switcher'),
             openLoginBtn: document.getElementById('open-login-btn'),
             stepLoginBtn: document.getElementById('step-login-btn'),
@@ -575,7 +624,7 @@
         bootstrap();
 
         async function bootstrap() {
-            await loadGramJS();
+            await ensureGramReady();
             if (state.activePhone && state.gram) {
                 try {
                     setOperation(`Connecting ${state.activePhone}...`, 1, 1);
@@ -593,6 +642,17 @@
         function bindEvents() {
             els.openLoginBtn.addEventListener('click', openLoginModal);
             els.stepLoginBtn.addEventListener('click', openLoginModal);
+            els.kebabMenuBtn.addEventListener('click', () => {
+                state.ui.menuOpen = !state.ui.menuOpen;
+                renderMenu();
+            });
+            els.menuGeminiBtn.addEventListener('click', () => {
+                activeTab = 'login';
+                state.ui.menuOpen = false;
+                renderTabs();
+                renderMenu();
+                els.geminiKeyInput.focus();
+            });
             els.closeLoginBtn.addEventListener('click', closeLoginModal);
             els.closeDmBtn.addEventListener('click', closeDmModal);
             els.sampleNicheBtn.addEventListener('click', () => {
@@ -655,6 +715,19 @@
                     else if (state.authFlow.step === 'password') submitPassword();
                 });
             });
+            document.addEventListener('click', event => {
+                if (!state.ui.menuOpen) return;
+                if (els.kebabMenu.contains(event.target) || els.kebabMenuBtn.contains(event.target)) return;
+                state.ui.menuOpen = false;
+                renderMenu();
+            });
+            document.querySelectorAll('[data-tab]').forEach(button => {
+                button.addEventListener('click', () => {
+                    activeTab = button.dataset.tab;
+                    renderTabs();
+                });
+            });
+            window.addEventListener('resize', renderTabs);
         }
 
         function loadAccounts() {
@@ -690,6 +763,8 @@
 
         function render() {
             renderNav();
+            renderMenu();
+            renderTabs();
             renderAccounts();
             renderKeywords();
             renderGroups();
@@ -731,6 +806,9 @@
             }
 
             const active = state.activePhone ? state.accounts[state.activePhone] : null;
+            els.menuActiveAccount.textContent = active
+                ? `${active.name || state.activePhone} (${state.activePhone})`
+                : 'No account selected';
             els.activeAccountLine.textContent = active
                 ? `Active account: ${active.name || state.activePhone} · ${state.activePhone}${active.username ? ` · ${active.username}` : ''}`
                 : 'No active account selected.';
@@ -749,6 +827,26 @@
                 els.fallbackBanner.classList.add('hidden');
                 els.fallbackBanner.textContent = '';
             }
+        }
+
+        function renderMenu() {
+            els.kebabMenu.classList.toggle('hidden', !state.ui.menuOpen);
+            els.kebabMenuBtn.setAttribute('aria-expanded', state.ui.menuOpen ? 'true' : 'false');
+        }
+
+        function renderTabs() {
+            const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+            document.querySelectorAll('[data-tab]').forEach(button => {
+                const selected = button.dataset.tab === activeTab;
+                button.classList.toggle('bg-sky-500/20', selected);
+                button.classList.toggle('border-sky-400/40', selected);
+                button.classList.toggle('text-sky-100', selected);
+            });
+            document.querySelectorAll('[data-tab-panel]').forEach(panel => {
+                const visible = isDesktop || panel.dataset.tabPanel === activeTab;
+                panel.classList.toggle('hidden', !visible);
+                panel.classList.toggle('is-hidden-mobile', !visible && !isDesktop);
+            });
         }
 
         function renderAccounts() {
@@ -936,21 +1034,25 @@
             els.loginModal.classList.toggle('flex', state.ui.loginOpen);
 
             const step = state.authFlow?.step || 'phone';
-            setLoginStepState(els.loginStepPhone, step === 'phone' || step === 'sending' || step === 'verifying' || step === 'done', step !== 'phone');
+            setLoginStepState(els.loginStepPhone, step === 'phone' || step === 'waiting-gram' || step === 'sending' || step === 'verifying' || step === 'done', step !== 'phone' && step !== 'waiting-gram');
             setLoginStepState(els.loginStepOtp, step === 'otp' || step === 'verifying' || step === 'done', ['verifying', 'done'].includes(step));
             setLoginStepState(els.loginStepPassword, step === 'password' || step === 'done', step === 'done');
 
             els.otpBox.classList.toggle('hidden', step !== 'otp' && step !== 'verifying' && step !== 'done');
             els.passwordBox.classList.toggle('hidden', step !== 'password' && step !== 'done');
-            els.sendPhoneBtn.classList.toggle('hidden', step !== 'phone');
+            const waitingGram = step === 'waiting-gram' || (!state.gram && state.gramLoading);
+            els.sendPhoneBtn.classList.toggle('hidden', step !== 'phone' && step !== 'waiting-gram');
             els.verifyOtpBtn.classList.toggle('hidden', step !== 'otp');
             els.verifyPasswordBtn.classList.toggle('hidden', step !== 'password');
+            els.sendPhoneBtn.innerHTML = waitingGram
+                ? '<i class="fa-solid fa-spinner fa-spin mr-2"></i>GramJS load ho raha hai...'
+                : 'Send OTP';
 
             if (!state.authFlow) {
                 els.loginStatus.className = 'mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300';
                 els.loginStatus.textContent = state.gram
                     ? 'Ready. Phone enter karke OTP mangwa sakte ho.'
-                    : 'GramJS load hote hi login available ho jayega.';
+                    : 'GramJS load ho raha hai, please wait...';
             } else {
                 const tone = state.authFlow.error ? 'error' : state.authFlow.step === 'done' ? 'success' : 'neutral';
                 els.loginStatus.className = `mt-5 rounded-2xl border px-4 py-3 text-sm ${tone === 'error' ? 'border-red-400/20 bg-red-500/10 text-red-100' : tone === 'success' ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : 'border-white/10 bg-white/5 text-slate-300'}`;
@@ -990,7 +1092,7 @@
             const canUseTelegram = Boolean(state.gram && state.activePhone);
             els.searchBtn.disabled = !canUseTelegram;
             els.scanBtn.disabled = !canUseTelegram || !state.groups.some(group => group.selected);
-            els.sendPhoneBtn.disabled = !state.gram;
+            els.sendPhoneBtn.disabled = false;
             els.regenerateDmBtn.disabled = !state.dmLead;
             els.sendDmBtn.disabled = !state.dmLead;
         }
@@ -1006,6 +1108,8 @@
         }
 
         async function loadGramJS() {
+            state.gramLoading = true;
+            render();
             for (const candidate of TELEGRAM_CANDIDATES) {
                 try {
                     setOperation(`Loading GramJS from ${candidate.label}...`, 1, 1);
@@ -1014,6 +1118,7 @@
                         state.gram = gram;
                         state.gramLabel = candidate.label;
                         state.gramError = '';
+                        state.gramLoading = false;
                         setOperation('Ready.', 0, 0);
                         render();
                         showToast(`GramJS loaded via ${candidate.label}`, 'success');
@@ -1025,8 +1130,18 @@
             }
 
             setOperation('Fallback mode active.', 0, 0);
+            state.gramLoading = false;
+            gramLoadPromise = null;
             render();
             showToast('GramJS load failed. Fallback guidance shown above.', 'warning');
+        }
+
+        function ensureGramReady() {
+            if (state.gram) return Promise.resolve(true);
+            if (!gramLoadPromise) {
+                gramLoadPromise = loadGramJS().then(() => Boolean(state.gram));
+            }
+            return gramLoadPromise;
         }
 
         function saveGeminiKey() {
@@ -1124,7 +1239,29 @@
                 return;
             }
             if (!state.gram) {
-                showToast('GramJS load nahi hua. Fallback note check karo.', 'warning');
+                state.pendingLoginPhone = phone;
+                state.authFlow = {
+                    phone,
+                    client: null,
+                    step: 'waiting-gram',
+                    status: 'GramJS load ho raha hai, please wait...',
+                    error: null,
+                    resolveCode: null,
+                    resolvePassword: null
+                };
+                render();
+                showToast('GramJS load ho raha hai, please wait...', 'warning');
+                await ensureGramReady();
+                if (!state.gram) {
+                    state.authFlow.error = new Error('GramJS unavailable');
+                    state.authFlow.status = 'GramJS load fail ho gaya. Network/CDN change karke retry karo.';
+                    render();
+                    return;
+                }
+                if (state.pendingLoginPhone !== phone) return;
+                state.pendingLoginPhone = '';
+                els.loginPhoneInput.value = phone;
+                await beginLogin();
                 return;
             }
 
@@ -1521,6 +1658,7 @@
 
         function openLoginModal() {
             state.ui.loginOpen = true;
+            activeTab = 'login';
             if (!state.authFlow) {
                 state.authFlow = null;
                 els.loginOtpInput.value = '';
