@@ -7,7 +7,7 @@ const app = express();
 const PORT = 8080;
 
 app.use(express.json());
-app.use(express.static('public')); // Ye line public folder se index.html uthayegi
+app.use(express.static('public')); 
 
 // 👇 YAHAN APNI GEMINI KEY DAALEIN 👇
 const GEMINI_API_KEY = 'AQ.Ab8RN6LWTjRDIPDlGh0i00-hu29pdGRKR_4K5kBPKvox9E5ZOg';
@@ -113,17 +113,17 @@ app.post('/api/auth/logout', async (req, res) => {
 });
 
 // ==========================================
-// API 1: LIVE AI-POWERED SEARCH (HR PERSONA)
+// API 1: LIVE AI-POWERED SEARCH (INDIAN TARGETED)
 // ==========================================
 app.post('/api/auto-search', async (req, res) => {
     const { niche } = req.body;
     const targetNiche = niche || "affiliate marketing agents";
     let smartKeywordsToSearch = [];
 
-    console.log(`\n🧠 AI Brain Working: Generating keywords for "${targetNiche}"...`);  
+    console.log(`\n🧠 AI Brain Working: Generating Indian keywords for "${targetNiche}"...`);  
 
     try {  
-        const prompt = `Act as an HR recruiter looking to hire ${targetNiche} in the iGaming industry on Telegram. Find public Telegram groups where people related to ${targetNiche} actively discuss work, partnerships, promotion, traffic, or affiliate opportunities. Generate exactly 15 Telegram search queries. Each query must be 2-3 words maximum. Output ONLY a comma-separated list, nothing else.`;  
+        const prompt = `Act as an HR recruiter looking to hire ${targetNiche} in the iGaming industry specifically for the INDIAN market on Telegram. Find public Telegram groups where Indian users actively discuss work, traffic, or affiliate opportunities. Generate exactly 15 Telegram search queries. Use Indian context words along with the niche (e.g., "india", "hindi", "promoters adda", "kamao", "desi"). Each query must be 2-3 words maximum. Output ONLY a comma-separated list, nothing else.`;  
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {  
             method: 'POST',  
@@ -136,11 +136,11 @@ app.post('/api/auto-search', async (req, res) => {
 
         const rawKeywords = aiData.candidates[0].content.parts[0].text;  
         smartKeywordsToSearch = rawKeywords.split(',').map(kw => kw.trim().replace(/"/g, ''));  
-        console.log(`💡 AI Generated Keywords: `, smartKeywordsToSearch);  
+        console.log(`💡 AI Generated Indian Keywords: `, smartKeywordsToSearch);  
 
     } catch (err) {  
         console.log(`⚠️ AI Request Failed! Error: ${err.message}`);  
-        smartKeywordsToSearch = [`${targetNiche} chat`, "earning group", "promoter network", "part time adda", "freelance hiring"];  
+        smartKeywordsToSearch = [`${targetNiche} india`, "earning group hindi", "promoter adda", "part time india", "affiliate hindi"];  
     }  
 
     let allGroups = [];  
@@ -168,7 +168,7 @@ app.post('/api/auto-search', async (req, res) => {
 });
 
 // ==========================================
-// API 2: AUTO-SCAN GROUPS & AI SCORING (NO JOIN)
+// API 2: AUTO-SCAN GROUPS & AI SCORING (STRICTLY INDIANS)
 // ==========================================
 app.post('/api/scan-groups', async (req, res) => {
     const { groups } = req.body;
@@ -178,20 +178,18 @@ app.post('/api/scan-groups', async (req, res) => {
     console.log(`\n🔍 Scanning ${groups.length} public groups without joining...`);
 
     try {
-        // Step 1: Har group se last 40 messages nikalna
         for (const group of groups) {
             try {
                 const messages = await client.getMessages(group, { limit: 40 }); 
-                
                 for (const msg of messages) {
                     if (msg.message && msg.sender && msg.sender.username) {
                         collectedMessages.push({
                             username: `@${msg.sender.username}`,
-                            text: msg.message.substring(0, 200) // Truncate to save AI tokens
+                            text: msg.message.substring(0, 200) 
                         });
                     }
                 }
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Delay to avoid flood wait
+                await new Promise(resolve => setTimeout(resolve, 1000)); 
             } catch (err) {
                 console.log(`⚠️ Skipped ${group}: ${err.message}`);
             }
@@ -201,7 +199,6 @@ app.post('/api/scan-groups', async (req, res) => {
             return res.json({ success: true, candidates: [] });
         }
 
-        // Combine messages from the same user
         let userChats = {};
         collectedMessages.forEach(m => {
             if(!userChats[m.username]) userChats[m.username] = [];
@@ -212,23 +209,26 @@ app.post('/api/scan-groups', async (req, res) => {
             return `User: ${username}\nMessages: ${userChats[username].join(' | ')}`;
         }).join('\n\n');
 
-        console.log(`🧠 AI Brain Working: Scoring ${Object.keys(userChats).length} active users...`);
+        console.log(`🧠 AI Brain Working: Filtering out non-Indians from ${Object.keys(userChats).length} active users...`);
 
-        // Step 2: Gemini AI Scoring
-        const prompt = `You are an expert HR recruiter in the iGaming and Affiliate marketing industry. 
-        Analyze the following Telegram user messages. Identify potential candidates like Affiliate Agents, Website Promoters, Media Buyers, Traffic Providers, or SEO Marketers.
-        Evaluate their relevance to iGaming/Casino/Betting/Traffic generation.
+        const prompt = `You are an expert HR recruiter in the iGaming and Affiliate marketing industry, strictly hiring for the INDIAN market. 
+        Analyze the following Telegram user messages. 
         
         Data:
         ${aiInputData}
 
+        CRITICAL INSTRUCTIONS:
+        1. ONLY select candidates who appear to be from INDIA (Look for Hindi, Hinglish, mentions of INR, Paytm, UPI, or Indian locations/context).
+        2. STRICTLY IGNORE and REJECT users speaking Russian, Turkish, Arabic, Spanish, or showing non-Indian context, no matter how good they are.
+        3. Identify potential candidates like Affiliate Agents, Website Promoters, Media Buyers, or Traffic Providers.
+        
         Return ONLY a JSON array of objects with these exact keys:
         - "username": (string, the user's handle)
-        - "category": (string, e.g., Affiliate Agent, Media Buyer, General User)
-        - "score": (number, 0-100 based on relevance to iGaming traffic/promotion)
-        - "reason": (string, 1 short sentence why they got this score based on their messages)
+        - "category": (string, e.g., Affiliate Agent, Media Buyer)
+        - "score": (number, 0-100 based on relevance to iGaming traffic)
+        - "reason": (string, 1 short sentence why they got this score AND mention their Indian context indicator like "Speaks Hinglish" or "Mentions INR")
         
-        CRITICAL: Do not include any markdown formatting like \`\`\`json. Just output the raw JSON array. Return [] if no one is relevant.`;
+        CRITICAL: Do not include any markdown formatting like \`\`\`json. Just output the raw JSON array. Return [] if no one is relevant or Indian.`;
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
@@ -244,17 +244,33 @@ app.post('/api/scan-groups', async (req, res) => {
             rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim(); 
             candidates = JSON.parse(rawText);
             
-            // Filter candidates with score > 50 and sort descending
             candidates = candidates.filter(c => c.score > 50).sort((a,b) => b.score - a.score);
         } catch(e) {
             console.error("AI JSON Parse Error:", e);
         }
 
-        console.log(`✅ AI found ${candidates.length} good candidates!`);
+        console.log(`✅ AI found ${candidates.length} INDIAN candidates!`);
         res.json({ success: true, candidates });
 
     } catch (error) {
         console.error("Scan Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
+// API 3: SEND DIRECT MESSAGE (PHASE 3)
+// ==========================================
+app.post('/api/send-dm', async (req, res) => {
+    const { username, message } = req.body;
+    if (!username || !message) return res.status(400).json({ error: "Missing username or message" });
+
+    try {
+        console.log(`\n✉️ Sending personalized DM to ${username}...`);
+        await client.sendMessage(username, { message: message });
+        res.json({ success: true });
+    } catch (error) {
+        console.error(`❌ Failed to send DM to ${username}:`, error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
